@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>HUD Cámara – Detección en Español</title>
+<style>
+  :root {
+    --bg:#0b1020; --fg:#e6f3ff; --accent:#6ee7ff; --accent2:#22d3ee; --grid: rgba(110,231,255,0.08);
+  }
+  *{box-sizing:border-box} body{margin:0;background:radial-gradient(1200px 600px at 70% 10%,#111a33,var(--bg));color:var(--fg);font-family:Inter,ui-sans-serif,system-ui;overflow:hidden}
+  .grid{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px}
+  .topbar{position:fixed;top:env(safe-area-inset-top,12px);left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.6);backdrop-filter:blur(6px);border-radius:14px}
+  .brand{font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.9;font-size:14px}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button,select,input[type=range]{background:rgba(110,231,255,.1);color:var(--fg);border:1px solid rgba(110,231,255,.4);padding:8px 10px;border-radius:10px}
+  button{cursor:pointer} button:disabled{opacity:.5;cursor:not-allowed} button:hover{border-color:var(--accent)}
+  label{font-size:12px;opacity:.9}
+  .stage{position:fixed;inset:0;display:grid;place-items:center;padding:80px 320px 20px 12px}
+  @media (max-width: 1024px){ .stage{padding:120px 12px 160px 12px} }
+  .view{position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;border:1px solid rgba(110,231,255,.25);border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#000}
+  video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .tag{position:absolute;transform:translate(-50%,-100%);background:rgba(10,15,30,.85);backdrop-filter:blur(4px);border:1px solid rgba(110,231,255,.6);border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:8px;box-shadow:0 0 10px var(--accent)}
+  .tag .label{font-weight:700;margin-right:6px} .tag .conf{opacity:.8;font-variant-numeric:tabular-nums}
+  .side{position:fixed;top:80px;right:12px;bottom:12px;width:300px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.55);backdrop-filter:blur(6px);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+  @media (max-width: 1024px){ .side{top:auto;right:12px;left:12px;bottom:12px;width:auto} }
+  .side h3{margin:4px 6px 0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+  .panel{flex:1;overflow:auto;padding:8px;border:1px dashed rgba(110,231,255,.25);border-radius:12px}
+  .item{padding:8px;border-bottom:1px dashed rgba(110,231,255,.15)} .item:last-child{border-bottom:0}
+  .badge{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid rgba(110,231,255,.5);font-size:11px;margin-left:6px;opacity:.9}
+  .footer{font-size:12px;opacity:.65;padding:6px 8px}
+  .infoCard{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(92vw,720px);z-index:50;background:rgba(6,10,22,.95);border:1px solid rgba(110,231,255,.35);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  .infoTitle{font-weight:800;margin:0 0 6px 0;font-size:16px}
+  .infoBody{font-size:14px;line-height:1.4;opacity:.95}
+  .close{float:right;background:transparent;border:1px solid rgba(110,231,255,.4);border-radius:10px;padding:4px 8px}
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+
+  <div class="topbar">
+    <div class="brand">HUD • Cámara IA (ES)</div>
+    <div class="controls">
+      <select id="cameraSelect" title="Cámara"></select>
+      <button id="btnStart">Iniciar cámara</button>
+      <button id="btnStop" disabled>Detener</button>
+      <label>Sensibilidad <input id="thresh" type="range" min="0.10" max="0.75" step="0.01" value="0.30"/></label>
+      <label>Frecuencia
+        <select id="freq">
+          <option value="1">Cada cuadro (máx)</option>
+          <option value="2" selected>1 de cada 2</option>
+          <option value="3">1 de cada 3</option>
+          <option value="5">1 de cada 5</option>
+        </select>
+      </label>
+      <label><input id="onlineInfo" type="checkbox" checked/> Info en línea</label>
+      <span id="status" style="opacity:.85">Inicializando…</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="view" id="view">
+      <video id="video" playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <!-- tags flotantes se insertan aquí -->
+    </div>
+  </div>
+
+  <aside class="side">
+    <h3>Detecciones</h3>
+    <div class="panel" id="list"></div>
+    <div class="footer">
+      Corre 100% en tu navegador. Para mejor detección: buena luz, distancia media, cámara trasera en móvil.
+    </div>
+  </aside>
+
+  <!-- TensorFlow.js & COCO-SSD -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
+  <script>
+  (async function(){
+    const $ = sel => document.querySelector(sel);
+    const video = $('#video'), canvas = $('#canvas'), ctx = canvas.getContext('2d', {willReadFrequently:true});
+    const view = $('#view'), list = $('#list'), cameraSelect = $('#cameraSelect');
+    const btnStart = $('#btnStart'), btnStop = $('#btnStop'), statusEl = $('#status');
+    const threshEl = $('#thresh'), freqEl = $('#freq'), onlineInfoEl = $('#onlineInfo');
+
+    let stream=null, model=null, running=false, rafId=0, frameCount=0;
+    const tags = new Map(); // id -> HTMLElement
+    const infoCache = new Map(); // nombreES -> resumen
+
+    // Intentar usar WebGL en dispositivos capaces (mejor rendimiento móvil)
+    try { await tf.setBackend('webgl'); } catch(e) {}
+    await tf.ready();
+
+    // Mapeo rápido EN->ES (para lo más común); si no existe, se traduce por título de Wikipedia
+    const mapEs = {
+      person:'persona', bicycle:'bicicleta', car:'coche', motorcycle:'motocicleta',
+      airplane:'avión', bus:'autobús', train:'tren', truck:'camión', boat:'barco',
+      traffic_light:'semáforo', fire_hydrant:'hidrante', stop_sign:'señal de stop',
+      parking_meter:'parquímetro', bench:'banco', bird:'pájaro', cat:'gato', dog:'perro',
+      horse:'caballo', sheep:'oveja', cow:'vaca', elephant:'elefante', bear:'oso',
+      zebra:'cebra', giraffe:'jirafa', backpack:'mochila', umbrella:'paraguas',
+      handbag:'bolso', tie:'corbata', suitcase:'maleta', frisbee:'frisbi',
+      skis:'esquís', snowboard:'tabla de snowboard', sports_ball:'balón', kite:'cometa',
+      baseball_bat:'bate de béisbol', baseball_glove:'guante de béisbol', skateboard:'patineta',
+      surfboard:'tabla de surf', tennis_racket:'raqueta de tenis', bottle:'botella',
+      wine_glass:'copa de vino', cup:'taza', fork:'tenedor', knife:'cuchillo', spoon:'cuchara',
+      bowl:'cuenco', banana:'banano', apple:'manzana', sandwich:'sándwich', orange:'naranja',
+      broccoli:'brócoli', carrot:'zanahoria', hot_dog:'perro caliente', pizza:'pizza',
+      donut:'dónut', cake:'torta', chair:'silla', couch:'sofá', potted_plant:'planta en maceta',
+      bed:'cama', dining_table:'mesa de comedor', toilet:'inodoro', tv:'televisor',
+      laptop:'portátil', mouse:'ratón', remote:'control remoto', keyboard:'teclado',
+      cell_phone:'teléfono móvil', microwave:'microondas', oven:'horno', toaster:'tostadora',
+      sink:'lavamanos', refrigerator:'refrigerador', book:'libro', clock:'reloj',
+      vase:'jarrón', scissors:'tijeras', teddy_bear:'oso de peluche', hair_drier:'secador de pelo',
+      toothbrush:'cepillo de dientes'
+    };
+
+    function toES(label){ return mapEs[label] || label.replace(/_/g,' '); }
+
+    // Wikipedia ES: buscar y traer resumen corto
+    async function fetchWikiSummary(termES){
+      if (!termES) return null;
+      const key = termES.toLowerCase();
+      if (infoCache.has(key)) return infoCache.get(key);
+
+      try {
+        // 1) Buscar título adecuado en ES
+        const searchURL = `https://es.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(termES)}&limit=1`;
+        const sr = await fetch(searchURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
+        let title = (sr?.pages && sr.pages[0]?.title) ? sr.pages[0].title : termES;
+
+        // 2) Traer resumen
+        const sumURL = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const data = await fetch(sumURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
+        const summary = data?.extract || `Sin resumen disponible para “${termES}”.`;
+        infoCache.set(key, {title: data?.title || title, summary});
+        return {title: data?.title || title, summary};
+      } catch(e){
+        return {title: termES, summary: 'No se pudo obtener información en línea.'};
+      }
+    }
+
+    function showInfoCard({title, summary}){
+      const old = document.querySelector('.infoCard'); if (old) old.remove();
+      const card = document.createElement('div'); card.className='infoCard';
+      card.innerHTML = `
+        <button class="close" aria-label="Cerrar">✕</button>
+        <h4 class="infoTitle">${title}</h4>
+        <div class="infoBody">${summary}</div>`;
+      document.body.appendChild(card);
+      card.querySelector('.close').addEventListener('click', ()=> card.remove());
+    }
+
+    function resizeCanvas(){
+      const rect = view.getBoundingClientRect();
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    async function enumerateCams(){
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const vids = devices.filter(d => d.kind === 'videoinput');
+      cameraSelect.innerHTML = '';
+      vids.forEach((d,i)=>{
+        const opt = document.createElement('option');
+        opt.value = d.deviceId; opt.textContent = d.label || `Cámara ${i+1}`;
+        cameraSelect.appendChild(opt);
+      });
+    }
+
+    async function startCamera(){
+      try{
+        if (stream) stopCamera();
+        const deviceId = cameraSelect.value || undefined;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } :
+                  { facingMode: 'environment', width: {ideal:1280}, height:{ideal:720} },
+          audio:false
+        });
+        video.srcObject = stream;
+        await video.play(); // requiere gesto en iOS: el botón "Iniciar cámara"
+        resizeCanvas();
+        running = true; frameCount = 0;
+        btnStart.disabled = true; btnStop.disabled = false;
+        loop();
+      }catch(err){
+        console.error(err);
+        alert('No se pudo iniciar la cámara. Usa HTTPS o localhost, y concede permisos.');
+      }
+    }
+    function stopCamera(){
+      running=false; cancelAnimationFrame(rafId);
+      if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+      btnStart.disabled=false; btnStop.disabled=true;
+    }
+
+    function drawDetections(preds){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const vw = canvas.width, vh = canvas.height;
+      const vW = video.videoWidth, vH = video.videoHeight; if (!vW || !vH) return;
+
+      // Letterboxing
+      const canvasAspect = vw/vh, videoAspect = vW/vH;
+      let drawW, drawH, offX, offY;
+      if (videoAspect > canvasAspect){ drawW = vw; drawH = vw/videoAspect; offX=0; offY=(vh-drawH)/2; }
+      else { drawH = vh; drawW = vh*videoAspect; offY=0; offX=(vw-drawW)/2; }
+
+      // Limpiar UI
+      list.innerHTML=''; tags.forEach(el=>el.remove()); tags.clear();
+
+      preds.forEach((p, idx)=>{
+        const [x,y,w,h] = p.bbox;
+        const sx = offX + (x / vW) * drawW;
+        const sy = offY + (y / vH) * drawH;
+        const sw = (w / vW) * drawW;
+        const sh = (h / vH) * drawH;
+
+        // Caja
+        ctx.lineWidth = 2 * devicePixelRatio;
+        ctx.strokeStyle = 'rgba(110,231,255,0.95)';
+        ctx.setLineDash([10*devicePixelRatio, 6*devicePixelRatio]);
+        ctx.strokeRect(sx, sy, sw, sh);
+        ctx.setLineDash([]);
+
+        const nombreES = toES(p.class);
+
+        // Tag flotante
+        const tag = document.createElement('div');
+        tag.className='tag';
+        tag.style.left = ( (sx + sw/2) / devicePixelRatio ) + 'px';
+        tag.style.top  = ( (sy) / devicePixelRatio ) + 'px';
+        tag.innerHTML = `<span class="dot"></span><span class="label">${nombreES}</span><span class="conf">${(p.score*100).toFixed(1)}%</span>`;
+        view.appendChild(tag); tags.set(idx, tag);
+
+        // Sidebar
+        const li = document.createElement('div');
+        li.className='item';
+        li.innerHTML = `<strong>${nombreES}</strong> <span class="badge">${(p.score*100).toFixed(1)}%</span>
+          <div style="opacity:.8;margin-top:4px;font-size:13px;">ID #${idx}</div>
+          <button class="mini" style="margin-top:6px;background:rgba(34,211,238,.18);border:1px solid rgba(34,211,238,.5);padding:6px 8px;border-radius:10px">Ver información</button>`;
+        list.appendChild(li);
+
+        li.querySelector('button').addEventListener('click', async ()=>{
+          if (!onlineInfoEl.checked){ showInfoCard({title:nombreES, summary:'(Información en línea desactivada)'}); return; }
+          const info = await fetchWikiSummary(nombreES);
+          showInfoCard({title: info.title, summary: info.summary});
+        });
+      });
+    }
+
+    async function loop(){
+      if (!running || !model) return;
+      const skip = parseInt(freqEl.value || '2', 10);
+      frameCount++;
+      if (frameCount % skip === 0){
+        const threshold = parseFloat(threshEl.value || '0.30');
+        const preds = await model.detect(video);
+        // Filtrar por umbral de confianza (más bajo = más sensible)
+        drawDetections(preds.filter(p => p.score >= threshold));
+      }
+      rafId = requestAnimationFrame(loop);
+    }
+
+    // Cargar modelo (lite = más rápido en móviles)
+    cocoSsd.load({base:'lite_mobilenet_v2'}).then(m=>{
+      model=m; statusEl.textContent='Modelo listo';
+    }).catch(e=>{
+      console.error(e); statusEl.textContent='Error al cargar modelo';
+    });
+
+    // UI
+    btnStart.addEventListener('click', startCamera);
+    btnStop.addEventListener('click', stopCamera);
+
+    // Pedir permiso breve para poblar nombres de cámaras (móviles suelen requerir gesto; si falla, igual intentamos enumerar)
+    try{
+      const tmp = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      tmp.getTracks().forEach(t=>t.stop());
+      await enumerateCams();
+    }catch{ await enumerateCams(); }
+
+    // Ajustar canvas al inicio
+    resizeCanvas();
+  })();
+  </script>
+</body>
+</html>
