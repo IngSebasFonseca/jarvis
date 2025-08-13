@@ -34,6 +34,20 @@
   .infoTitle{font-weight:800;margin:0 0 6px 0;font-size:16px}
   .infoBody{font-size:14px;line-height:1.4;opacity:.95}
   .close{float:right;background:transparent;border:1px solid rgba(110,231,255,.4);border-radius:10px;padding:4px 8px}
+  /* --- FIX de interacción --- */
+.topbar, .side { z-index: 1000; }     /* siempre por encima del video/canvas */
+.infoCard { z-index: 1100; }           /* la tarjeta también por encima */
+.view { z-index: 1; }                  /* contenedor del video/canvas por debajo */
+
+/* muy importante: que video y canvas no capturen clic/touch */
+video, canvas { pointer-events: none; }
+
+/* pero las etiquetas flotantes y botones SÍ deben recibir clics */
+.tag, .panel, .panel * { pointer-events: auto; }
+
+/* en móviles, mejora el gesto de toque */
+* { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
 </style>
 </head>
 <body>
@@ -290,3 +304,4 @@
   </script>
 </body>
 </html>
+
