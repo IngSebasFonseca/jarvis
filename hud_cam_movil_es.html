@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>HUD Cámara – Detección en Español</title>
+<title>HUD Cámara – Jarvis ES</title>
 <style>
   :root {
-    --bg:#0b1020; --fg:#e6f3ff; --accent:#6ee7ff; --accent2:#22d3ee; --grid: rgba(110,231,255,0.08);
+    --bg:#0b1020; --fg:#e6f3ff; --accent:#6ee7ff; --accent2:#22d3ee; --violet:#7c3aed; --grid: rgba(110,231,255,0.08);
   }
   *{box-sizing:border-box}
   body{margin:0;background:radial-gradient(1200px 600px at 70% 10%,#111a33,var(--bg));color:var(--fg);font-family:Inter,ui-sans-serif,system-ui;overflow:hidden}
@@ -17,66 +17,100 @@
   .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   button,select,input[type=range]{background:rgba(110,231,255,.1);color:var(--fg);border:1px solid rgba(110,231,255,.4);padding:8px 10px;border-radius:10px}
   button{cursor:pointer} button:disabled{opacity:.5;cursor:not-allowed} button:hover{border-color:var(--accent)}
-  label{font-size:12px;opacity:.9}
+  label{font-size:12px;opacity:.95;display:flex;gap:6px;align-items:center}
+  .stat{font-size:12px;opacity:.85}
 
-  .stage{position:fixed;inset:0;display:grid;place-items:center;padding:88px 320px 20px 12px}
-  @media (max-width: 1024px){ .stage{padding:120px 12px 190px 12px} }
+  .stage{position:fixed;inset:0;display:grid;place-items:center;padding:108px 360px 24px 12px}
+  @media (max-width: 1024px){ .stage{padding:130px 12px 220px 12px} }
 
   .view{position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;border:1px solid rgba(110,231,255,.25);border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#000;z-index:1}
   video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
-  /* capa para capturar taps/clicks sobre el video */
   .hitlayer{position:absolute;inset:0;pointer-events:auto}
+
+  /* HUD extra */
+  .reticle{position:absolute;inset:0;pointer-events:none}
+  .reticle:before,.reticle:after{
+    content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:32vmin;height:32vmin;border:1px solid rgba(110,231,255,.35);border-radius:50%;
+    box-shadow:0 0 40px rgba(110,231,255,.2) inset;
+  }
+  .reticle:after{width:10vmin;height:10vmin;border-color:rgba(124,58,237,.35)}
+  .scanline{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(110,231,255,.7),transparent);animation:scan 2.8s linear infinite}
+  @keyframes scan{0%{top:0%}100%{top:100%}}
+
+  .radar{position:absolute;left:14px;bottom:14px;width:120px;height:120px;border-radius:50%;border:1px solid rgba(110,231,255,.3);overflow:hidden;opacity:.9;pointer-events:none}
+  .radar:before{content:"";position:absolute;inset:0;background:
+    radial-gradient(circle at center, rgba(110,231,255,.25) 0 1px, transparent 1px),
+    radial-gradient(circle at center, rgba(110,231,255,.15) 0 50%, transparent 50%);
+    background-size:10px 10px, 100% 100%;
+  }
+  .sweep{position:absolute;left:0;top:0;width:100%;height:100%;background:conic-gradient(from 0deg, rgba(110,231,255,.5), transparent 60%);transform-origin:center;animation:sweep 3.5s linear infinite}
+  @keyframes sweep{to{transform:rotate(360deg)}}
 
   .tag{position:absolute;transform:translate(-50%,-100%);background:rgba(10,15,30,.85);backdrop-filter:blur(4px);border:1px solid rgba(110,231,255,.6);border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:auto}
   .tag.compacto{padding:3px 6px;font-size:12px;border-radius:10px}
   .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:8px;box-shadow:0 0 10px var(--accent)}
   .tag .label{font-weight:700;margin-right:6px}
   .tag .conf{opacity:.8;font-variant-numeric:tabular-nums}
-  .tag.pinned{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.35)}
+  .tag.pinned{border-color:var(--violet);box-shadow:0 0 0 2px rgba(124,58,237,.35)}
 
-  .side{position:fixed;top:88px;right:12px;bottom:12px;width:320px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.55);backdrop-filter:blur(6px);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:1000}
-  @media (max-width: 1024px){ .side{top:auto;right:12px;left:12px;bottom:12px;width:auto;max-height:42vh} }
+  .side{position:fixed;top:108px;right:12px;bottom:12px;width:350px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.55);backdrop-filter:blur(6px);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:1000}
+  @media (max-width: 1024px){ .side{top:auto;right:12px;left:12px;bottom:12px;width:auto;max-height:46vh} }
   .side h3{margin:4px 6px 0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
   .panel{flex:1;overflow:auto;padding:8px;border:1px dashed rgba(110,231,255,.25);border-radius:12px}
   .item{padding:8px;border-bottom:1px dashed rgba(110,231,255,.15)}
   .item:last-child{border-bottom:0}
   .badge{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid rgba(110,231,255,.5);font-size:11px;margin-left:6px;opacity:.9}
-  .footer{font-size:12px;opacity:.65;padding:6px 8px}
+  .footer{font-size:12px;opacity:.75;padding:6px 8px}
 
-  .infoCard{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(92vw,760px);z-index:1100;background:rgba(6,10,22,.97);border:1px solid rgba(110,231,255,.35);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  .infoCard{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(92vw,820px);z-index:1100;background:rgba(6,10,22,.97);border:1px solid rgba(110,231,255,.35);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
   .infoTitle{font-weight:800;margin:0 0 6px 0;font-size:16px}
   .infoBody{font-size:14px;line-height:1.4;opacity:.95}
   .chip{display:inline-block;border:1px solid rgba(110,231,255,.4);border-radius:999px;padding:4px 8px;margin:2px 6px 2px 0;font-size:12px}
   .close{float:right;background:transparent;border:1px solid rgba(110,231,255,.4);border-radius:10px;padding:4px 8px}
 
-  /* switches compactos */
   .switch{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(110,231,255,.35);padding:6px 8px;border-radius:10px}
   .switch input{accent-color:#22d3ee}
 
-  /* para evitar superposición visual en móvil */
   .hide-tags .tag{display:none}
   .compact .tag{padding:3px 6px;font-size:12px;border-radius:10px}
+
+  .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(6,10,22,.9);border:1px solid rgba(110,231,255,.35);padding:8px 12px;border-radius:10px;z-index:1500;font-size:13px}
 </style>
 </head>
 <body>
   <div class="grid"></div>
 
   <div class="topbar">
-    <div class="brand">HUD • Cámara IA (ES)</div>
+    <div class="brand">HUD • Jarvis (ES)</div>
     <div class="controls">
       <select id="cameraSelect" title="Cámara"></select>
+      <label>Resolución
+        <select id="resolutionSel">
+          <option value="640x480">640×480</option>
+          <option value="1280x720" selected>1280×720</option>
+          <option value="1920x1080">1920×1080</option>
+        </select>
+      </label>
+      <label>Encuadre
+        <select id="fitSel">
+          <option value="contain" selected>Ver todo</option>
+          <option value="cover">Llenar</option>
+        </select>
+      </label>
       <button id="btnStart">Iniciar</button>
       <button id="btnStop" disabled>Detener</button>
 
       <label>Modelo
         <select id="modelSel">
-          <option value="lite_mobilenet_v2" selected>Rápido (móvil)</option>
-          <option value="mobilenet_v2">Preciso (más lento)</option>
+          <option value="lite_mobilenet_v2" selected>Rápido</option>
+          <option value="mobilenet_v2">Preciso</option>
         </select>
       </label>
 
       <label>Sensibilidad
-        <input id="thresh" type="range" min="0.10" max="0.75" step="0.01" value="0.30"/>
+        <input id="thresh" type="range" min="0.05" max="0.90" step="0.01" value="0.30"/>
+        <span id="threshVal" class="stat">30% (más bajo = detecta más)</span>
       </label>
 
       <label>Frecuencia
@@ -94,11 +128,15 @@
         </select>
       </label>
 
-      <span class="switch"><input id="toggleTags" type="checkbox" checked> Mostrar etiquetas</span>
-      <span class="switch"><input id="toggleCompact" type="checkbox"> Modo compacto</span>
+      <span class="switch"><input id="toggleTags" type="checkbox" checked> Etiquetas</span>
+      <span class="switch"><input id="toggleCompact" type="checkbox"> Compacto</span>
       <span class="switch"><input id="onlineInfo" type="checkbox" checked> Info en línea</span>
+      <span class="switch"><input id="narrator" type="checkbox"> Narrador</span>
+      <span class="switch"><input id="torch" type="checkbox"> Linterna</span>
 
-      <span id="status" style="opacity:.85">Cargando modelo…</span>
+      <button id="btnDict">Diccionario</button>
+      <span id="status" class="stat">Cargando modelo…</span>
+      <span id="perf" class="stat">FPS: --</span>
     </div>
   </div>
 
@@ -106,8 +144,12 @@
     <div class="view" id="view">
       <video id="video" playsinline muted></video>
       <canvas id="canvas"></canvas>
-      <div class="hitlayer" id="hit"></div>
-      <!-- tags flotantes se insertan aquí -->
+      <div class="hitlayer" id="hit" title="Toca para seleccionar el objeto más cercano"></div>
+
+      <!-- HUD extra -->
+      <div class="reticle"></div>
+      <div class="scanline"></div>
+      <div class="radar"><div class="sweep"></div></div>
     </div>
   </div>
 
@@ -115,9 +157,26 @@
     <h3>Detecciones</h3>
     <div class="panel" id="list"></div>
     <div class="footer">
-      Consejos: buena luz, distancia media, cámara trasera en móvil. Toca en el video para seleccionar el objeto más cercano.
+      Tips: Luz suficiente, distancia media, cámara trasera.  
+      Sensibilidad ↓ (ej. 20%) = detecta más; Sensibilidad ↑ (ej. 60%) = más estricta. Doble-tap en etiqueta para “pin”.
     </div>
   </aside>
+
+  <!-- Modal Diccionario -->
+  <div class="modal" id="dictModal" style="display:none;align-items:center;justify-content:center;">
+    <div class="box" style="width:min(92vw,760px);background:#0b132a;border:1px solid rgba(110,231,255,.35);border-radius:14px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h4 style="margin:4px 0 10px 0">Diccionario personal (se guarda en este dispositivo)</h4>
+        <button id="dictClose">Cerrar</button>
+      </div>
+      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="dictBase" placeholder="Etiqueta base (inglés del modelo, ej: car)" />
+        <input id="dictAlias" placeholder="Alias en español (ej: carro)" />
+        <button id="dictSave">Guardar alias</button>
+      </div>
+      <div class="dictList" id="dictList" style="max-height:40vh;overflow:auto;margin-top:8px;border:1px dashed rgba(110,231,255,.25);padding:8px;border-radius:10px"></div>
+    </div>
+  </div>
 
   <!-- TensorFlow.js & COCO-SSD -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
@@ -125,28 +184,49 @@
 
   <script>
   (async function(){
-    const $ = sel => document.querySelector(sel);
+    const $ = s => document.querySelector(s);
+
     const video = $('#video'), canvas = $('#canvas'), ctx = canvas.getContext('2d', {willReadFrequently:true});
     const view = $('#view'), list = $('#list'), cameraSelect = $('#cameraSelect');
     const btnStart = $('#btnStart'), btnStop = $('#btnStop'), statusEl = $('#status');
     const threshEl = $('#thresh'), freqEl = $('#freq'), onlineInfoEl = $('#onlineInfo');
     const modelSel = $('#modelSel'), hit = $('#hit'), toggleTags = $('#toggleTags'), toggleCompact = $('#toggleCompact'), maxTagsSel = $('#maxTags');
+    const fitSel = $('#fitSel'), resSel = $('#resolutionSel'), threshVal = $('#threshVal');
+    const narratorEl = $('#narrator'), torchEl = $('#torch'), perfEl = $('#perf');
+    const btnDict = $('#btnDict'), dictModal = $('#dictModal'), dictClose = $('#dictClose'), dictSave = $('#dictSave'), dictList = $('#dictList'), dictBase = $('#dictBase'), dictAlias = $('#dictAlias');
 
-    let stream=null, model=null, running=false, rafId=0, frameCount=0, latestPreds=[];
+    let stream=null, track=null, model=null, running=false, rafId=0, frameCount=0, latestPreds=[];
+    let lastTime = performance.now(), fps=0;
     const tags = new Map(); // id -> HTMLElement
-    const infoCache = new Map(); // nombreES -> {title, summary, recipes}
-    let selectedId = null; // id de detección seleccionada (pin)
-    let fetchAbort = null;
+    const infoCache = new Map(); // nombreES -> {title, summary, url, recipes}
+    let selectedId = null;
+    let prevBoxes = []; // para suavizado temporal
+    const alpha = 0.75; // suavizado (0..1) más alto = más estable
 
-    // Backend más rápido si hay WebGL
-    try { await tf.setBackend('webgl'); } catch(e){}
-    await tf.ready();
+    // ===== Utilidades =====
+    const toast = (m=>{ let t; return (msg)=>{ if(t) t.remove(); t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t&&t.remove(),1800);} })();
 
-    // Traducción EN->ES
+    function getDict(){ try { return JSON.parse(localStorage.getItem('jarvisDict')||'{}'); } catch { return {}; } }
+    function setDict(obj){ localStorage.setItem('jarvisDict', JSON.stringify(obj)); renderDict(); }
+    function renderDict(){
+      const d = getDict();
+      dictList.innerHTML = Object.keys(d).length ? '' : '<div style="opacity:.8">Vacío. Agrega alias arriba.</div>';
+      Object.entries(d).forEach(([base, alias])=>{
+        const row = document.createElement('div');
+        row.className='row';
+        row.innerHTML = `<div style="flex:1"><code>${base}</code> → <strong>${alias}</strong></div>
+                         <button data-k="${base}">Eliminar</button>`;
+        row.querySelector('button').addEventListener('click', (e)=>{
+          const k = e.currentTarget.getAttribute('data-k'); const cur = getDict(); delete cur[k]; setDict(cur);
+        });
+        dictList.appendChild(row);
+      });
+    }
+
+    // Traducción base
     const mapEs = { person:'persona', bicycle:'bicicleta', car:'coche', motorcycle:'motocicleta', airplane:'avión', bus:'autobús', train:'tren', truck:'camión', boat:'barco', traffic_light:'semáforo', fire_hydrant:'hidrante', stop_sign:'señal de stop', parking_meter:'parquímetro', bench:'banco', bird:'pájaro', cat:'gato', dog:'perro', horse:'caballo', sheep:'oveja', cow:'vaca', elephant:'elefante', bear:'oso', zebra:'cebra', giraffe:'jirafa', backpack:'mochila', umbrella:'paraguas', handbag:'bolso', tie:'corbata', suitcase:'maleta', frisbee:'frisbi', skis:'esquís', snowboard:'tabla de snowboard', sports_ball:'balón', kite:'cometa', baseball_bat:'bate de béisbol', baseball_glove:'guante de béisbol', skateboard:'patineta', surfboard:'tabla de surf', tennis_racket:'raqueta de tenis', bottle:'botella', wine_glass:'copa de vino', cup:'taza', fork:'tenedor', knife:'cuchillo', spoon:'cuchara', bowl:'cuenco', banana:'banano', apple:'manzana', sandwich:'sándwich', orange:'naranja', broccoli:'brócoli', carrot:'zanahoria', hot_dog:'perro caliente', pizza:'pizza', donut:'dónut', cake:'torta', chair:'silla', couch:'sofá', potted_plant:'planta en maceta', bed:'cama', dining_table:'mesa de comedor', toilet:'inodoro', tv:'televisor', laptop:'portátil', mouse:'ratón', remote:'control remoto', keyboard:'teclado', cell_phone:'teléfono móvil', microwave:'microondas', oven:'horno', toaster:'tostadora', sink:'lavamanos', refrigerator:'refrigerador', book:'libro', clock:'reloj', vase:'jarrón', scissors:'tijeras', teddy_bear:'oso de peluche', hair_drier:'secador de pelo', toothbrush:'cepillo de dientes' };
-    function toES(label){ return mapEs[label] || label.replace(/_/g,' '); }
+    function toES(label){ const user = getDict(); if (user[label]) return user[label]; return mapEs[label] || label.replace(/_/g,' '); }
 
-    // ¿Es comida?
     const foodSet = new Set(['banana','apple','orange','broccoli','carrot','pizza','sandwich','hot_dog','donut','cake']);
     const esToEnFood = { 'banano':'banana', 'manzana':'apple', 'naranja':'orange', 'brócoli':'broccoli', 'zanahoria':'carrot', 'perro caliente':'hot dog', 'sándwich':'sandwich', 'dónut':'donut', 'torta':'cake', 'pizza':'pizza' };
 
@@ -154,20 +234,17 @@
     async function fetchWikiSummary(termES){
       const key = termES.toLowerCase();
       if (infoCache.has(key)) return infoCache.get(key);
-
-      const result = { title: termES, summary: 'Sin resumen disponible.', recipes: [] };
-
+      const result = { title: termES, summary: 'Sin resumen disponible.', url: null, recipes: [] };
       try {
         const sURL = `https://es.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(termES)}&limit=1`;
         const s = await fetch(sURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
         let title = (s?.pages && s.pages[0]?.title) ? s.pages[0].title : termES;
-
         const sumURL = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
         const data = await fetch(sumURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
         result.title = data?.title || title;
         result.summary = data?.extract || result.summary;
+        result.url = data?.content_urls?.desktop?.page || data?.content_urls?.mobile?.page || null;
       } catch(e){ /* ignore */ }
-
       infoCache.set(key, result);
       return result;
     }
@@ -176,48 +253,24 @@
     async function fetchRecipesIfFood(nombreES){
       const key = `recipes:${nombreES.toLowerCase()}`;
       if (infoCache.has(key)) return infoCache.get(key);
-
-      const en = esToEnFood[nombreES] || nombreES; // si ya viene en es, mapear a en
+      const en = esToEnFood[nombreES] || nombreES;
       const out = [];
-
       try {
-        // 1) buscar por nombre
         let r = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(en)}`).then(x=>x.json());
-        if (r && r.meals) {
-          r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
-        }
-        // 2) si vacío: filtrar por ingrediente
+        if (r && r.meals) r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
         if (out.length === 0) {
           r = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(en)}`).then(x=>x.json());
-          if (r && r.meals) {
-            r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
-          }
+          if (r && r.meals) r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
         }
       } catch(e){ /* ignore */ }
-
       infoCache.set(key, out);
       return out;
     }
 
-    function showInfoCard({title, summary, recipes=[]}){
-      const old = document.querySelector('.infoCard'); if (old) old.remove();
-      const card = document.createElement('div'); card.className='infoCard';
-      const recHTML = recipes && recipes.length ? `<div style="margin-top:8px"><strong>Recetas sugeridas:</strong> ${recipes.map(r=>`<a class="chip" href="${r.url}" target="_blank" rel="noopener">${r.name}</a>`).join(' ')}</div>` : '';
-      card.innerHTML = `
-        <button class="close" aria-label="Cerrar">✕</button>
-        <h4 class="infoTitle">${title}</h4>
-        <div class="infoBody">${summary}</div>
-        ${recHTML}`;
-      document.body.appendChild(card);
-      card.querySelector('.close').addEventListener('click', ()=> card.remove());
-    }
+    function speak(txt){ if(!narratorEl.checked) return; try{ const u=new SpeechSynthesisUtterance(txt); u.lang='es-ES'; speechSynthesis.speak(u);}catch{} }
 
-    function resizeCanvas(){
-      const rect = view.getBoundingClientRect();
-      canvas.width = rect.width * devicePixelRatio;
-      canvas.height = rect.height * devicePixelRatio;
-    }
-    window.addEventListener('resize', resizeCanvas);
+    // ===== Cámara =====
+    function parseRes(v){ const [w,h] = v.split('x').map(Number); return {width:w, height:h}; }
 
     async function enumerateCams(){
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -234,33 +287,118 @@
       try{
         if (stream) stopCamera();
         const deviceId = cameraSelect.value || undefined;
+        const {width, height} = parseRes($('#resolutionSel').value || '1280x720');
+
         stream = await navigator.mediaDevices.getUserMedia({
-          video: deviceId ? { deviceId: { exact: deviceId } } :
-                  { facingMode: 'environment', width: {ideal:1280}, height:{ideal:720} },
+          video: deviceId ? { deviceId: { exact: deviceId }, width:{ideal:width}, height:{ideal:height} } :
+                            { facingMode: 'environment', width:{ideal:width}, height:{ideal:height} },
           audio:false
         });
         video.srcObject = stream;
-        await video.play(); // iOS requiere gesto (botón Iniciar)
+        await video.play(); // iOS requiere gesto
+        track = stream.getVideoTracks()[0];
+        setupTorch(track);
+        setupZoomControl(track);
+
+        applyFit();
         resizeCanvas();
-        running = true; frameCount = 0;
+        running = true; frameCount = 0; selectedId=null; prevBoxes=[];
         btnStart.disabled = true; btnStop.disabled = false;
         loop();
+        toast('Cámara iniciada'); speak('Cámara lista');
       }catch(err){
         console.error(err);
         alert('No se pudo iniciar la cámara. Usa HTTPS o localhost, y concede permisos.');
       }
     }
+
     function stopCamera(){
       running=false; cancelAnimationFrame(rafId);
-      if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+      if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; track=null; }
       btnStart.disabled=false; btnStop.disabled=true;
+      toast('Cámara detenida'); speak('Cámara detenida');
     }
 
-    function iou(a,b){
-      const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
-      const x2 = Math.min(a.x+a.w, b.x+b.w), y2 = Math.min(a.y+a.h, b.y+b.h);
-      const inter = Math.max(0,x2-x1)*Math.max(0,y2-y1);
-      const ua = a.w*a.h + b.w*b.h - inter;
+    function applyFit(){
+      const mode = $('#fitSel').value || 'contain';
+      video.style.objectFit = mode;
+      canvas.style.objectFit = mode;
+    }
+
+    function resizeCanvas(){
+      const rect = view.getBoundingClientRect();
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    async function setupTorch(track){
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps.torch !== undefined) {
+        torchEl.disabled = false;
+        torchEl.onchange = async ()=>{ try { await track.applyConstraints({ advanced: [{ torch: torchEl.checked }] }); } catch(e){} };
+      } else {
+        torchEl.disabled = true; torchEl.checked = false;
+      }
+    }
+
+    async function setupZoomControl(track){
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      let zoomCtl = $('#zoomCtl');
+      if (!zoomCtl){
+        zoomCtl = document.createElement('label');
+        zoomCtl.id='zoomCtl';
+        zoomCtl.innerHTML = `Zoom <input id="zoomRange" type="range" min="1" max="1" step="0.1" value="1"/><span id="zoomVal" class="stat">1×</span>`;
+        document.querySelector('.controls').appendChild(zoomCtl);
+      }
+      const range = $('#zoomRange'), zVal = $('#zoomVal');
+      if (caps.zoom){
+        range.min = caps.zoom.min || 1;
+        range.max = caps.zoom.max || 1;
+        range.step = caps.zoom.step || 0.1;
+        const settings = track.getSettings ? track.getSettings() : {};
+        range.value = settings.zoom || 1;
+        zVal.textContent = `${Number(range.value).toFixed(1)}×`;
+        range.oninput = async () => {
+          zVal.textContent = `${Number(range.value).toFixed(1)}×`;
+          try { await track.applyConstraints({ advanced: [{ zoom: Number(range.value) }] }); } catch(e){}
+        };
+        zoomCtl.style.display = 'flex';
+      } else {
+        zoomCtl.style.display = 'none';
+      }
+    }
+
+    // ===== Detección =====
+    function smoothBoxes(current){
+      // Emparejar por clase y superposición para suavizar
+      const matched = [];
+      current.forEach(c=>{
+        let best=null, bestIou=0, bi=-1;
+        prevBoxes.forEach((p,i)=>{
+          if (p.class!==c.class) return;
+          const iou = IoU(p, c);
+          if (iou>bestIou){ bestIou=iou; best=p; bi=i; }
+        });
+        const out = {...c};
+        if (best && bestIou>0.2){
+          out.x = alpha*best.x + (1-alpha)*c.x;
+          out.y = alpha*best.y + (1-alpha)*c.y;
+          out.w = alpha*best.w + (1-alpha)*c.w;
+          out.h = alpha*best.h + (1-alpha)*c.h;
+          matched.push(bi);
+        }
+        current[current.indexOf(c)] = out;
+      });
+      prevBoxes = current;
+      return current;
+    }
+
+    function IoU(a,b){
+      const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
+      const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
+      const inter=Math.max(0,x2-x1)*Math.max(0,y2-y1);
+      const ua=a.w*a.h + b.w*b.h - inter;
       return ua>0 ? inter/ua : 0;
     }
 
@@ -269,47 +407,51 @@
       const vw = canvas.width, vh = canvas.height;
       const vW = video.videoWidth, vH = video.videoHeight; if (!vW || !vH) return;
 
-      // Ajuste de letterboxing
+      // Letterboxing
       const canvasAspect = vw/vh, videoAspect = vW/vH;
       let drawW, drawH, offX, offY;
       if (videoAspect > canvasAspect){ drawW = vw; drawH = vw/videoAspect; offX=0; offY=(vh-drawH)/2; }
       else { drawH = vh; drawW = vh*videoAspect; offY=0; offX=(vw-drawW)/2; }
 
-      // Limpiar UI (excepto tag "pinned")
+      // Limpiar UI (conserva el "pin")
       list.innerHTML='';
       for (const [id,el] of tags){ if (id!==selectedId){ el.remove(); tags.delete(id); } }
 
-      // Ordenar por score y limitar cantidad
       const maxTags = parseInt(maxTagsSel.value||'5',10);
       const sorted = preds.slice().sort((a,b)=>b.score-a.score).slice(0,maxTags);
       latestPreds = [];
 
       sorted.forEach((p, idx)=>{
-        const [x,y,w,h] = p.bbox;
-        const sx = offX + (x / vW) * drawW;
-        const sy = offY + (y / vH) * drawH;
-        const sw = (w / vW) * drawW;
-        const sh = (h / vH) * drawH;
+        const sx = offX + (p.bbox[0] / vW) * drawW;
+        const sy = offY + (p.bbox[1] / vH) * drawH;
+        const sw = (p.bbox[2] / vW) * drawW;
+        const sh = (p.bbox[3] / vH) * drawH;
 
-        // Dibujar caja
+        const nombreES = toES(p.class);
+        const id = idx;
+        latestPreds.push({ id, class:p.class, label:nombreES, score:p.score, x:sx, y:sy, w:sw, h:sh });
+
+        // Caja
         ctx.lineWidth = 2 * devicePixelRatio;
         ctx.strokeStyle = 'rgba(110,231,255,0.95)';
         ctx.setLineDash([10*devicePixelRatio, 6*devicePixelRatio]);
         ctx.strokeRect(sx, sy, sw, sh);
         ctx.setLineDash([]);
 
-        const nombreES = toES(p.class);
-        const id = idx; // id local al frame
-        latestPreds.push({ id, class:p.class, label:nombreES, score:p.score, x:sx, y:sy, w:sw, h:sh });
-
-        // Crear tag si no existe o si es el seleccionado actual
+        // Tag
         const mustShowTag = toggleTags.checked || id===selectedId;
         if (mustShowTag){
           let tag = tags.get(id);
           if (!tag){
             tag = document.createElement('div');
             tag.className = 'tag';
-            tag.addEventListener('click', ()=> selectDetectionById(id));
+            tag.addEventListener('click', (ev)=>{
+              if (ev.detail===2) { // doble click/tap
+                selectedId = id; for (const [k,el] of tags){ el.classList.toggle('pinned', k===id); }
+                speak(`Fijado ${nombreES}`);
+              }
+              selectDetectionById(id);
+            });
             view.appendChild(tag);
             tags.set(id, tag);
           }
@@ -317,14 +459,15 @@
           tag.classList.toggle('pinned', id===selectedId);
           tag.style.left = ((sx + sw/2)/devicePixelRatio) + 'px';
           tag.style.top  = (sy/devicePixelRatio) + 'px';
-          tag.innerHTML = `<span class="dot"></span><span class="label">${nombreES}</span><span class="conf">${(p.score*100).toFixed(1)}%</span>`;
+          tag.innerHTML = `<span class="dot"></span><span class="label">${nombreES}</span><span class="conf">${(p.score*100).toFixed(0)}%</span>`;
         }
 
         // Panel
         const li = document.createElement('div');
+        const rel = Math.round((sw*sh)/(vw*vh)*100);
         li.className='item';
-        li.innerHTML = `<strong>${nombreES}</strong> <span class="badge">${(p.score*100).toFixed(1)}%</span>
-          <div style="opacity:.8;margin-top:4px;font-size:13px;">${Math.round(sw/devicePixelRatio)}×${Math.round(sh/devicePixelRatio)}px</div>
+        li.innerHTML = `<strong>${nombreES}</strong> <span class="badge">${(p.score*100).toFixed(0)}%</span>
+          <div style="opacity:.8;margin-top:4px;font-size:13px;">Ocupa ~${rel}% del encuadre</div>
           <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
             <button class="mini" data-id="${id}" style="background:rgba(34,211,238,.18);border:1px solid rgba(34,211,238,.5);padding:6px 8px;border-radius:10px">Seleccionar</button>
             <button class="mini info" data-id="${id}" style="background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.5);padding:6px 8px;border-radius:10px">Ver información</button>
@@ -332,7 +475,6 @@
         list.appendChild(li);
       });
 
-      // Delegación de clicks en panel
       list.querySelectorAll('button.mini').forEach(btn=>{
         btn.addEventListener('click', async (e)=>{
           const id = parseInt(e.currentTarget.getAttribute('data-id'),10);
@@ -343,54 +485,84 @@
           }
         });
       });
+
+      // Auto-seleccionar el mejor objetivo si no hay “pin”
+      if (selectedId===null && latestPreds.length){
+        const best = latestPreds[0];
+        selectDetectionById(best.id, false); // no abrir tarjeta cada frame
+      }
     }
 
-    function selectDetectionById(id){
+    function selectDetectionById(id, open=true){
       selectedId = id;
-      // marcar visualmente
       for (const [k,el] of tags){ el.classList.toggle('pinned', k===id); }
-      // si están ocultas las etiquetas pero tenemos un pin, mostrar sólo la fija
       document.body.classList.toggle('hide-tags', toggleTags.checked ? false : true);
-      // abrir ficha
-      showInfoForId(id);
+      if (open) showInfoForId(id);
     }
 
     async function showInfoForId(id){
       const d = latestPreds.find(p=>p.id===id);
       if (!d) return;
-      if (fetchAbort) fetchAbort.abort();
-      fetchAbort = new AbortController();
-
       const nombreES = toES(d.class);
-      let info = { title: nombreES, summary: 'Sin resumen disponible.' };
+      let info = { title: nombreES, summary: 'Sin resumen disponible.', url:null };
       if (onlineInfoEl.checked){
         info = await fetchWikiSummary(nombreES);
       }
-      // recetas si comida
       let recipes = [];
       if (onlineInfoEl.checked && (foodSet.has(d.class) || foodSet.has(nombreES))){
         recipes = await fetchRecipesIfFood(nombreES);
       }
-      showInfoCard({title: info.title, summary: info.summary, recipes});
+      showInfoCard({title: info.title, summary: info.summary, url: info.url, recipes}, d.class);
+      speak(`${info.title}. ${(d.score*100).toFixed(0)} por ciento de confianza.`);
     }
 
-    // Tap/click en el video: seleccionar la detección más cercana al punto
+    function showInfoCard({title, summary, url=null, recipes=[]}, baseLabel=null){
+      const old = document.querySelector('.infoCard'); if (old) old.remove();
+      const card = document.createElement('div'); card.className='infoCard';
+      const linkHTML = url ? `<div style="margin-top:6px"><a class="chip" href="${url}" target="_blank" rel="noopener">Wikipedia</a></div>` : '';
+      const recHTML = recipes && recipes.length ? `<div style="margin-top:8px"><strong>Recetas:</strong> ${recipes.map(r=>`<a class="chip" href="${r.url}" target="_blank" rel="noopener">${r.name}</a>`).join(' ')}</div>` : '';
+      const learnHTML = baseLabel ? `
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span style="opacity:.85">¿Cómo quieres que nombre <code>${baseLabel}</code>?</span>
+          <input id="aliasInput" placeholder="ej: carro" style="flex:1;min-width:120px">
+          <button id="aliasSave">Guardar alias</button>
+        </div>` : '';
+      card.innerHTML = `
+        <button class="close" aria-label="Cerrar">✕</button>
+        <h4 class="infoTitle">${title}</h4>
+        <div class="infoBody">${summary}</div>
+        ${linkHTML}
+        ${recHTML}
+        ${learnHTML}`;
+      document.body.appendChild(card);
+      card.querySelector('.close').addEventListener('click', ()=> card.remove());
+      const aliasBtn = card.querySelector('#aliasSave');
+      if (aliasBtn){
+        aliasBtn.addEventListener('click', ()=>{
+          const v = (document.getElementById('aliasInput').value||'').trim();
+          if (!v) return;
+          const cur = getDict(); cur[baseLabel] = v; setDict(cur);
+          toast(`Aprendido: ${baseLabel} → ${v}`);
+        });
+      }
+    }
+
+    // Tap/click en el video: seleccionar la detección más cercana
     hit.addEventListener('click', (ev)=>{
       const rect = hit.getBoundingClientRect();
       const x = (ev.clientX - rect.left) * devicePixelRatio;
       const y = (ev.clientY - rect.top) * devicePixelRatio;
       let best = null, bestDist = Infinity;
-
       latestPreds.forEach(d=>{
         const cx = d.x + d.w/2, cy = d.y + d.h/2;
-        // penaliza cajas que no contengan el punto
         const inside = (x>=d.x && x<=d.x+d.w && y>=d.y && y<=d.y+d.h);
-        const dist = Math.hypot(cx-x, cy-y) + (inside?0:200); // preferir las que contienen
+        const dist = Math.hypot(cx-x, cy-y) + (inside?0:200);
         if (dist < bestDist){ bestDist=dist; best=d; }
       });
       if (best) selectDetectionById(best.id);
     });
 
+    // ===== Bucle principal =====
     async function loop(){
       if (!running || !model) return;
       const skip = parseInt(freqEl.value || '2', 10);
@@ -398,11 +570,23 @@
       if (frameCount % skip === 0){
         const threshold = parseFloat(threshEl.value || '0.30');
         const preds = await model.detect(video);
-        // filtrar ruido y mínimo tamaño para estabilidad
+        // filtrar ruido + tamaño mínimo
         const minSide = 20 * devicePixelRatio;
-        const filtered = preds.filter(p => p.score >= threshold && p.bbox[2] >= minSide && p.bbox[3] >= minSide);
+        let filtered = preds.filter(p => p.score >= threshold && p.bbox[2] >= minSide && p.bbox[3] >= minSide);
+        // normalizar a objetos con bbox nombrados y suavizar
+        const norm = filtered.map(p=>({ class:p.class, score:p.score, bbox:p.bbox }));
+        const smoothed = smoothBoxes(norm.map(n=>({ ...n, x:n.bbox[0], y:n.bbox[1], w:n.bbox[2], h:n.bbox[3] })));
+        // pasar de vuelta a formato bbox
+        filtered = smoothed.map(s=>({ class:s.class, score:s.score, bbox:[s.x,s.y,s.w,s.h] }));
         drawDetections(filtered);
       }
+
+      // FPS
+      const now = performance.now();
+      const dt = now - lastTime; lastTime = now;
+      fps = Math.round(1000/dt);
+      if (Number.isFinite(fps)) perfEl.textContent = `FPS: ${fps}`;
+
       rafId = requestAnimationFrame(loop);
     }
 
@@ -410,23 +594,55 @@
       statusEl.textContent = 'Cargando modelo…';
       model = await cocoSsd.load({ base: modelSel.value });
       statusEl.textContent = `Modelo listo (${modelSel.value})`;
+      speak('Modelo cargado');
+    }
+
+    // ===== Comandos por voz (experimental) =====
+    function setupVoice(){
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = 'es-ES'; rec.continuous = true; rec.interimResults = false;
+      rec.onresult = (e)=>{
+        const txt = e.results[e.results.length-1][0].transcript.toLowerCase().trim();
+        // comandos simples
+        if (txt.includes('iniciar')) btnStart.click();
+        if (txt.includes('detener')) btnStop.click();
+        if (txt.includes('etiquetas')) { toggleTags.checked = !toggleTags.checked; toggleTags.dispatchEvent(new Event('change')); }
+        if (txt.includes('compacto')) { toggleCompact.checked = !toggleCompact.checked; toggleCompact.dispatchEvent(new Event('change')); }
+        const m = txt.match(/sensibilidad\s+(\d{1,2}|100)/); if (m){ const v=Math.max(5,Math.min(90,Number(m[1]))); threshEl.value=(v/100).toFixed(2); threshVal.textContent=`${v}% (más bajo = detecta más)`; toast(`Sensibilidad ${v}%`); }
+        const z = txt.match(/zoom\s+([0-9]+(\.[0-9]+)?)/); if (z){ const zr=parseFloat(z[1]); const range=$('#zoomRange'); if(range){ range.value=zr; range.dispatchEvent(new Event('input')); toast(`Zoom ${zr}×`);} }
+        if (txt.includes('información') || txt.includes('info')){ if (selectedId!==null) showInfoForId(selectedId); }
+        if (txt.includes('linterna')){ if(!torchEl.disabled){ torchEl.checked=!torchEl.checked; torchEl.dispatchEvent(new Event('change')); } }
+        speak(`Comando recibido: ${txt}`);
+      };
+      rec.onerror = ()=>{};
+      rec.onend = ()=>{ setTimeout(()=>rec.start(), 1000); }; // auto-reinicio
+      try{ rec.start(); toast('Comandos de voz activos'); } catch{}
     }
 
     // ===== Eventos UI =====
     btnStart.addEventListener('click', startCamera);
     btnStop.addEventListener('click', stopCamera);
-    modelSel.addEventListener('change', async ()=>{
-      if (model) { model = null; }
-      await loadModel();
+
+    modelSel.addEventListener('change', async ()=>{ model = null; await loadModel(); });
+    toggleTags.addEventListener('change', ()=>{ document.body.classList.toggle('hide-tags', !toggleTags.checked); });
+    toggleCompact.addEventListener('change', ()=>{ document.body.classList.toggle('compact', toggleCompact.checked); for (const [,el] of tags){ el.classList.toggle('compacto', toggleCompact.checked); } });
+    fitSel.addEventListener('change', applyFit);
+    resSel.addEventListener('change', async ()=>{ if (running) { await startCamera(); } });
+    threshEl.addEventListener('input', ()=>{ threshVal.textContent = `${Math.round(parseFloat(threshEl.value)*100)}% (más bajo = detecta más)`; });
+
+    // Diccionario modal
+    btnDict.addEventListener('click', ()=>{ dictModal.style.display='flex'; renderDict(); });
+    $('#dictClose').addEventListener('click', ()=>{ dictModal.style.display='none'; });
+    dictSave.addEventListener('click', ()=>{
+      const base = ($('#dictBase').value||'').trim();
+      const alias = ($('#dictAlias').value||'').trim();
+      if (!base || !alias) return;
+      const cur = getDict(); cur[base] = alias; setDict(cur); $('#dictBase').value=''; $('#dictAlias').value=''; renderDict();
+      toast(`Aprendido: ${base} → ${alias}`);
     });
-    toggleTags.addEventListener('change', ()=>{
-      document.body.classList.toggle('hide-tags', !toggleTags.checked);
-    });
-    toggleCompact.addEventListener('change', ()=>{
-      document.body.classList.toggle('compact', toggleCompact.checked);
-      // actualizar clases de tags existentes
-      for (const [,el] of tags){ el.classList.toggle('compacto', toggleCompact.checked); }
-    });
+    dictModal.addEventListener('click', (e)=>{ if (e.target === dictModal) dictModal.style.display='none'; });
 
     // permisos para listar cámaras
     try{
@@ -435,11 +651,13 @@
       await enumerateCams();
     }catch{ await enumerateCams(); }
 
-    // cargar modelo inicial
+    // Backend y render
+    try { await tf.setBackend('webgl'); } catch(e){}
+    await tf.ready();
     await loadModel();
-
-    // Ajustar canvas
     resizeCanvas();
+    threshVal.textContent = `${Math.round(parseFloat(threshEl.value)*100)}% (más bajo = detecta más)`;
+    setupVoice(); // opcional si el navegador lo soporta
   })();
   </script>
 </body>
