@@ -8,46 +8,54 @@
   :root {
     --bg:#0b1020; --fg:#e6f3ff; --accent:#6ee7ff; --accent2:#22d3ee; --grid: rgba(110,231,255,0.08);
   }
-  *{box-sizing:border-box} body{margin:0;background:radial-gradient(1200px 600px at 70% 10%,#111a33,var(--bg));color:var(--fg);font-family:Inter,ui-sans-serif,system-ui;overflow:hidden}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 70% 10%,#111a33,var(--bg));color:var(--fg);font-family:Inter,ui-sans-serif,system-ui;overflow:hidden}
   .grid{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px}
-  .topbar{position:fixed;top:env(safe-area-inset-top,12px);left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.6);backdrop-filter:blur(6px);border-radius:14px}
+
+  .topbar{position:fixed;top:env(safe-area-inset-top,12px);left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.6);backdrop-filter:blur(6px);border-radius:14px;z-index:1000}
   .brand{font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.9;font-size:14px}
   .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   button,select,input[type=range]{background:rgba(110,231,255,.1);color:var(--fg);border:1px solid rgba(110,231,255,.4);padding:8px 10px;border-radius:10px}
   button{cursor:pointer} button:disabled{opacity:.5;cursor:not-allowed} button:hover{border-color:var(--accent)}
   label{font-size:12px;opacity:.9}
-  .stage{position:fixed;inset:0;display:grid;place-items:center;padding:80px 320px 20px 12px}
-  @media (max-width: 1024px){ .stage{padding:120px 12px 160px 12px} }
-  .view{position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;border:1px solid rgba(110,231,255,.25);border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#000}
-  video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  .tag{position:absolute;transform:translate(-50%,-100%);background:rgba(10,15,30,.85);backdrop-filter:blur(4px);border:1px solid rgba(110,231,255,.6);border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+
+  .stage{position:fixed;inset:0;display:grid;place-items:center;padding:88px 320px 20px 12px}
+  @media (max-width: 1024px){ .stage{padding:120px 12px 190px 12px} }
+
+  .view{position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;border:1px solid rgba(110,231,255,.25);border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#000;z-index:1}
+  video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+  /* capa para capturar taps/clicks sobre el video */
+  .hitlayer{position:absolute;inset:0;pointer-events:auto}
+
+  .tag{position:absolute;transform:translate(-50%,-100%);background:rgba(10,15,30,.85);backdrop-filter:blur(4px);border:1px solid rgba(110,231,255,.6);border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:auto}
+  .tag.compacto{padding:3px 6px;font-size:12px;border-radius:10px}
   .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:8px;box-shadow:0 0 10px var(--accent)}
-  .tag .label{font-weight:700;margin-right:6px} .tag .conf{opacity:.8;font-variant-numeric:tabular-nums}
-  .side{position:fixed;top:80px;right:12px;bottom:12px;width:300px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.55);backdrop-filter:blur(6px);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
-  @media (max-width: 1024px){ .side{top:auto;right:12px;left:12px;bottom:12px;width:auto} }
+  .tag .label{font-weight:700;margin-right:6px}
+  .tag .conf{opacity:.8;font-variant-numeric:tabular-nums}
+  .tag.pinned{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.35)}
+
+  .side{position:fixed;top:88px;right:12px;bottom:12px;width:320px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.55);backdrop-filter:blur(6px);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:1000}
+  @media (max-width: 1024px){ .side{top:auto;right:12px;left:12px;bottom:12px;width:auto;max-height:42vh} }
   .side h3{margin:4px 6px 0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
   .panel{flex:1;overflow:auto;padding:8px;border:1px dashed rgba(110,231,255,.25);border-radius:12px}
-  .item{padding:8px;border-bottom:1px dashed rgba(110,231,255,.15)} .item:last-child{border-bottom:0}
+  .item{padding:8px;border-bottom:1px dashed rgba(110,231,255,.15)}
+  .item:last-child{border-bottom:0}
   .badge{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid rgba(110,231,255,.5);font-size:11px;margin-left:6px;opacity:.9}
   .footer{font-size:12px;opacity:.65;padding:6px 8px}
-  .infoCard{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(92vw,720px);z-index:50;background:rgba(6,10,22,.95);border:1px solid rgba(110,231,255,.35);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+
+  .infoCard{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(92vw,760px);z-index:1100;background:rgba(6,10,22,.97);border:1px solid rgba(110,231,255,.35);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
   .infoTitle{font-weight:800;margin:0 0 6px 0;font-size:16px}
   .infoBody{font-size:14px;line-height:1.4;opacity:.95}
+  .chip{display:inline-block;border:1px solid rgba(110,231,255,.4);border-radius:999px;padding:4px 8px;margin:2px 6px 2px 0;font-size:12px}
   .close{float:right;background:transparent;border:1px solid rgba(110,231,255,.4);border-radius:10px;padding:4px 8px}
-  /* --- FIX de interacción --- */
-.topbar, .side { z-index: 1000; }     /* siempre por encima del video/canvas */
-.infoCard { z-index: 1100; }           /* la tarjeta también por encima */
-.view { z-index: 1; }                  /* contenedor del video/canvas por debajo */
 
-/* muy importante: que video y canvas no capturen clic/touch */
-video, canvas { pointer-events: none; }
+  /* switches compactos */
+  .switch{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(110,231,255,.35);padding:6px 8px;border-radius:10px}
+  .switch input{accent-color:#22d3ee}
 
-/* pero las etiquetas flotantes y botones SÍ deben recibir clics */
-.tag, .panel, .panel * { pointer-events: auto; }
-
-/* en móviles, mejora el gesto de toque */
-* { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-
+  /* para evitar superposición visual en móvil */
+  .hide-tags .tag{display:none}
+  .compact .tag{padding:3px 6px;font-size:12px;border-radius:10px}
 </style>
 </head>
 <body>
@@ -57,19 +65,40 @@ video, canvas { pointer-events: none; }
     <div class="brand">HUD • Cámara IA (ES)</div>
     <div class="controls">
       <select id="cameraSelect" title="Cámara"></select>
-      <button id="btnStart">Iniciar cámara</button>
+      <button id="btnStart">Iniciar</button>
       <button id="btnStop" disabled>Detener</button>
-      <label>Sensibilidad <input id="thresh" type="range" min="0.10" max="0.75" step="0.01" value="0.30"/></label>
-      <label>Frecuencia
-        <select id="freq">
-          <option value="1">Cada cuadro (máx)</option>
-          <option value="2" selected>1 de cada 2</option>
-          <option value="3">1 de cada 3</option>
-          <option value="5">1 de cada 5</option>
+
+      <label>Modelo
+        <select id="modelSel">
+          <option value="lite_mobilenet_v2" selected>Rápido (móvil)</option>
+          <option value="mobilenet_v2">Preciso (más lento)</option>
         </select>
       </label>
-      <label><input id="onlineInfo" type="checkbox" checked/> Info en línea</label>
-      <span id="status" style="opacity:.85">Inicializando…</span>
+
+      <label>Sensibilidad
+        <input id="thresh" type="range" min="0.10" max="0.75" step="0.01" value="0.30"/>
+      </label>
+
+      <label>Frecuencia
+        <select id="freq">
+          <option value="1">Cada cuadro</option>
+          <option value="2" selected>1/2</option>
+          <option value="3">1/3</option>
+          <option value="5">1/5</option>
+        </select>
+      </label>
+
+      <label>Máx. etiquetas
+        <select id="maxTags">
+          <option>3</option><option selected>5</option><option>8</option><option>12</option>
+        </select>
+      </label>
+
+      <span class="switch"><input id="toggleTags" type="checkbox" checked> Mostrar etiquetas</span>
+      <span class="switch"><input id="toggleCompact" type="checkbox"> Modo compacto</span>
+      <span class="switch"><input id="onlineInfo" type="checkbox" checked> Info en línea</span>
+
+      <span id="status" style="opacity:.85">Cargando modelo…</span>
     </div>
   </div>
 
@@ -77,6 +106,7 @@ video, canvas { pointer-events: none; }
     <div class="view" id="view">
       <video id="video" playsinline muted></video>
       <canvas id="canvas"></canvas>
+      <div class="hitlayer" id="hit"></div>
       <!-- tags flotantes se insertan aquí -->
     </div>
   </div>
@@ -85,7 +115,7 @@ video, canvas { pointer-events: none; }
     <h3>Detecciones</h3>
     <div class="panel" id="list"></div>
     <div class="footer">
-      Corre 100% en tu navegador. Para mejor detección: buena luz, distancia media, cámara trasera en móvil.
+      Consejos: buena luz, distancia media, cámara trasera en móvil. Toca en el video para seleccionar el objeto más cercano.
     </div>
   </aside>
 
@@ -100,71 +130,84 @@ video, canvas { pointer-events: none; }
     const view = $('#view'), list = $('#list'), cameraSelect = $('#cameraSelect');
     const btnStart = $('#btnStart'), btnStop = $('#btnStop'), statusEl = $('#status');
     const threshEl = $('#thresh'), freqEl = $('#freq'), onlineInfoEl = $('#onlineInfo');
+    const modelSel = $('#modelSel'), hit = $('#hit'), toggleTags = $('#toggleTags'), toggleCompact = $('#toggleCompact'), maxTagsSel = $('#maxTags');
 
-    let stream=null, model=null, running=false, rafId=0, frameCount=0;
+    let stream=null, model=null, running=false, rafId=0, frameCount=0, latestPreds=[];
     const tags = new Map(); // id -> HTMLElement
-    const infoCache = new Map(); // nombreES -> resumen
+    const infoCache = new Map(); // nombreES -> {title, summary, recipes}
+    let selectedId = null; // id de detección seleccionada (pin)
+    let fetchAbort = null;
 
-    // Intentar usar WebGL en dispositivos capaces (mejor rendimiento móvil)
-    try { await tf.setBackend('webgl'); } catch(e) {}
+    // Backend más rápido si hay WebGL
+    try { await tf.setBackend('webgl'); } catch(e){}
     await tf.ready();
 
-    // Mapeo rápido EN->ES (para lo más común); si no existe, se traduce por título de Wikipedia
-    const mapEs = {
-      person:'persona', bicycle:'bicicleta', car:'coche', motorcycle:'motocicleta',
-      airplane:'avión', bus:'autobús', train:'tren', truck:'camión', boat:'barco',
-      traffic_light:'semáforo', fire_hydrant:'hidrante', stop_sign:'señal de stop',
-      parking_meter:'parquímetro', bench:'banco', bird:'pájaro', cat:'gato', dog:'perro',
-      horse:'caballo', sheep:'oveja', cow:'vaca', elephant:'elefante', bear:'oso',
-      zebra:'cebra', giraffe:'jirafa', backpack:'mochila', umbrella:'paraguas',
-      handbag:'bolso', tie:'corbata', suitcase:'maleta', frisbee:'frisbi',
-      skis:'esquís', snowboard:'tabla de snowboard', sports_ball:'balón', kite:'cometa',
-      baseball_bat:'bate de béisbol', baseball_glove:'guante de béisbol', skateboard:'patineta',
-      surfboard:'tabla de surf', tennis_racket:'raqueta de tenis', bottle:'botella',
-      wine_glass:'copa de vino', cup:'taza', fork:'tenedor', knife:'cuchillo', spoon:'cuchara',
-      bowl:'cuenco', banana:'banano', apple:'manzana', sandwich:'sándwich', orange:'naranja',
-      broccoli:'brócoli', carrot:'zanahoria', hot_dog:'perro caliente', pizza:'pizza',
-      donut:'dónut', cake:'torta', chair:'silla', couch:'sofá', potted_plant:'planta en maceta',
-      bed:'cama', dining_table:'mesa de comedor', toilet:'inodoro', tv:'televisor',
-      laptop:'portátil', mouse:'ratón', remote:'control remoto', keyboard:'teclado',
-      cell_phone:'teléfono móvil', microwave:'microondas', oven:'horno', toaster:'tostadora',
-      sink:'lavamanos', refrigerator:'refrigerador', book:'libro', clock:'reloj',
-      vase:'jarrón', scissors:'tijeras', teddy_bear:'oso de peluche', hair_drier:'secador de pelo',
-      toothbrush:'cepillo de dientes'
-    };
-
+    // Traducción EN->ES
+    const mapEs = { person:'persona', bicycle:'bicicleta', car:'coche', motorcycle:'motocicleta', airplane:'avión', bus:'autobús', train:'tren', truck:'camión', boat:'barco', traffic_light:'semáforo', fire_hydrant:'hidrante', stop_sign:'señal de stop', parking_meter:'parquímetro', bench:'banco', bird:'pájaro', cat:'gato', dog:'perro', horse:'caballo', sheep:'oveja', cow:'vaca', elephant:'elefante', bear:'oso', zebra:'cebra', giraffe:'jirafa', backpack:'mochila', umbrella:'paraguas', handbag:'bolso', tie:'corbata', suitcase:'maleta', frisbee:'frisbi', skis:'esquís', snowboard:'tabla de snowboard', sports_ball:'balón', kite:'cometa', baseball_bat:'bate de béisbol', baseball_glove:'guante de béisbol', skateboard:'patineta', surfboard:'tabla de surf', tennis_racket:'raqueta de tenis', bottle:'botella', wine_glass:'copa de vino', cup:'taza', fork:'tenedor', knife:'cuchillo', spoon:'cuchara', bowl:'cuenco', banana:'banano', apple:'manzana', sandwich:'sándwich', orange:'naranja', broccoli:'brócoli', carrot:'zanahoria', hot_dog:'perro caliente', pizza:'pizza', donut:'dónut', cake:'torta', chair:'silla', couch:'sofá', potted_plant:'planta en maceta', bed:'cama', dining_table:'mesa de comedor', toilet:'inodoro', tv:'televisor', laptop:'portátil', mouse:'ratón', remote:'control remoto', keyboard:'teclado', cell_phone:'teléfono móvil', microwave:'microondas', oven:'horno', toaster:'tostadora', sink:'lavamanos', refrigerator:'refrigerador', book:'libro', clock:'reloj', vase:'jarrón', scissors:'tijeras', teddy_bear:'oso de peluche', hair_drier:'secador de pelo', toothbrush:'cepillo de dientes' };
     function toES(label){ return mapEs[label] || label.replace(/_/g,' '); }
 
-    // Wikipedia ES: buscar y traer resumen corto
+    // ¿Es comida?
+    const foodSet = new Set(['banana','apple','orange','broccoli','carrot','pizza','sandwich','hot_dog','donut','cake']);
+    const esToEnFood = { 'banano':'banana', 'manzana':'apple', 'naranja':'orange', 'brócoli':'broccoli', 'zanahoria':'carrot', 'perro caliente':'hot dog', 'sándwich':'sandwich', 'dónut':'donut', 'torta':'cake', 'pizza':'pizza' };
+
+    // Wikipedia ES
     async function fetchWikiSummary(termES){
-      if (!termES) return null;
       const key = termES.toLowerCase();
       if (infoCache.has(key)) return infoCache.get(key);
 
-      try {
-        // 1) Buscar título adecuado en ES
-        const searchURL = `https://es.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(termES)}&limit=1`;
-        const sr = await fetch(searchURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
-        let title = (sr?.pages && sr.pages[0]?.title) ? sr.pages[0].title : termES;
+      const result = { title: termES, summary: 'Sin resumen disponible.', recipes: [] };
 
-        // 2) Traer resumen
+      try {
+        const sURL = `https://es.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(termES)}&limit=1`;
+        const s = await fetch(sURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
+        let title = (s?.pages && s.pages[0]?.title) ? s.pages[0].title : termES;
+
         const sumURL = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
         const data = await fetch(sumURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
-        const summary = data?.extract || `Sin resumen disponible para “${termES}”.`;
-        infoCache.set(key, {title: data?.title || title, summary});
-        return {title: data?.title || title, summary};
-      } catch(e){
-        return {title: termES, summary: 'No se pudo obtener información en línea.'};
-      }
+        result.title = data?.title || title;
+        result.summary = data?.extract || result.summary;
+      } catch(e){ /* ignore */ }
+
+      infoCache.set(key, result);
+      return result;
     }
 
-    function showInfoCard({title, summary}){
+    // Recetas con TheMealDB (público)
+    async function fetchRecipesIfFood(nombreES){
+      const key = `recipes:${nombreES.toLowerCase()}`;
+      if (infoCache.has(key)) return infoCache.get(key);
+
+      const en = esToEnFood[nombreES] || nombreES; // si ya viene en es, mapear a en
+      const out = [];
+
+      try {
+        // 1) buscar por nombre
+        let r = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(en)}`).then(x=>x.json());
+        if (r && r.meals) {
+          r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
+        }
+        // 2) si vacío: filtrar por ingrediente
+        if (out.length === 0) {
+          r = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(en)}`).then(x=>x.json());
+          if (r && r.meals) {
+            r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
+          }
+        }
+      } catch(e){ /* ignore */ }
+
+      infoCache.set(key, out);
+      return out;
+    }
+
+    function showInfoCard({title, summary, recipes=[]}){
       const old = document.querySelector('.infoCard'); if (old) old.remove();
       const card = document.createElement('div'); card.className='infoCard';
+      const recHTML = recipes && recipes.length ? `<div style="margin-top:8px"><strong>Recetas sugeridas:</strong> ${recipes.map(r=>`<a class="chip" href="${r.url}" target="_blank" rel="noopener">${r.name}</a>`).join(' ')}</div>` : '';
       card.innerHTML = `
         <button class="close" aria-label="Cerrar">✕</button>
         <h4 class="infoTitle">${title}</h4>
-        <div class="infoBody">${summary}</div>`;
+        <div class="infoBody">${summary}</div>
+        ${recHTML}`;
       document.body.appendChild(card);
       card.querySelector('.close').addEventListener('click', ()=> card.remove());
     }
@@ -197,7 +240,7 @@ video, canvas { pointer-events: none; }
           audio:false
         });
         video.srcObject = stream;
-        await video.play(); // requiere gesto en iOS: el botón "Iniciar cámara"
+        await video.play(); // iOS requiere gesto (botón Iniciar)
         resizeCanvas();
         running = true; frameCount = 0;
         btnStart.disabled = true; btnStop.disabled = false;
@@ -213,28 +256,42 @@ video, canvas { pointer-events: none; }
       btnStart.disabled=false; btnStop.disabled=true;
     }
 
+    function iou(a,b){
+      const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+      const x2 = Math.min(a.x+a.w, b.x+b.w), y2 = Math.min(a.y+a.h, b.y+b.h);
+      const inter = Math.max(0,x2-x1)*Math.max(0,y2-y1);
+      const ua = a.w*a.h + b.w*b.h - inter;
+      return ua>0 ? inter/ua : 0;
+    }
+
     function drawDetections(preds){
       ctx.clearRect(0,0,canvas.width,canvas.height);
       const vw = canvas.width, vh = canvas.height;
       const vW = video.videoWidth, vH = video.videoHeight; if (!vW || !vH) return;
 
-      // Letterboxing
+      // Ajuste de letterboxing
       const canvasAspect = vw/vh, videoAspect = vW/vH;
       let drawW, drawH, offX, offY;
       if (videoAspect > canvasAspect){ drawW = vw; drawH = vw/videoAspect; offX=0; offY=(vh-drawH)/2; }
       else { drawH = vh; drawW = vh*videoAspect; offY=0; offX=(vw-drawW)/2; }
 
-      // Limpiar UI
-      list.innerHTML=''; tags.forEach(el=>el.remove()); tags.clear();
+      // Limpiar UI (excepto tag "pinned")
+      list.innerHTML='';
+      for (const [id,el] of tags){ if (id!==selectedId){ el.remove(); tags.delete(id); } }
 
-      preds.forEach((p, idx)=>{
+      // Ordenar por score y limitar cantidad
+      const maxTags = parseInt(maxTagsSel.value||'5',10);
+      const sorted = preds.slice().sort((a,b)=>b.score-a.score).slice(0,maxTags);
+      latestPreds = [];
+
+      sorted.forEach((p, idx)=>{
         const [x,y,w,h] = p.bbox;
         const sx = offX + (x / vW) * drawW;
         const sy = offY + (y / vH) * drawH;
         const sw = (w / vW) * drawW;
         const sh = (h / vH) * drawH;
 
-        // Caja
+        // Dibujar caja
         ctx.lineWidth = 2 * devicePixelRatio;
         ctx.strokeStyle = 'rgba(110,231,255,0.95)';
         ctx.setLineDash([10*devicePixelRatio, 6*devicePixelRatio]);
@@ -242,30 +299,97 @@ video, canvas { pointer-events: none; }
         ctx.setLineDash([]);
 
         const nombreES = toES(p.class);
+        const id = idx; // id local al frame
+        latestPreds.push({ id, class:p.class, label:nombreES, score:p.score, x:sx, y:sy, w:sw, h:sh });
 
-        // Tag flotante
-        const tag = document.createElement('div');
-        tag.className='tag';
-        tag.style.left = ( (sx + sw/2) / devicePixelRatio ) + 'px';
-        tag.style.top  = ( (sy) / devicePixelRatio ) + 'px';
-        tag.innerHTML = `<span class="dot"></span><span class="label">${nombreES}</span><span class="conf">${(p.score*100).toFixed(1)}%</span>`;
-        view.appendChild(tag); tags.set(idx, tag);
+        // Crear tag si no existe o si es el seleccionado actual
+        const mustShowTag = toggleTags.checked || id===selectedId;
+        if (mustShowTag){
+          let tag = tags.get(id);
+          if (!tag){
+            tag = document.createElement('div');
+            tag.className = 'tag';
+            tag.addEventListener('click', ()=> selectDetectionById(id));
+            view.appendChild(tag);
+            tags.set(id, tag);
+          }
+          tag.classList.toggle('compacto', toggleCompact.checked);
+          tag.classList.toggle('pinned', id===selectedId);
+          tag.style.left = ((sx + sw/2)/devicePixelRatio) + 'px';
+          tag.style.top  = (sy/devicePixelRatio) + 'px';
+          tag.innerHTML = `<span class="dot"></span><span class="label">${nombreES}</span><span class="conf">${(p.score*100).toFixed(1)}%</span>`;
+        }
 
-        // Sidebar
+        // Panel
         const li = document.createElement('div');
         li.className='item';
         li.innerHTML = `<strong>${nombreES}</strong> <span class="badge">${(p.score*100).toFixed(1)}%</span>
-          <div style="opacity:.8;margin-top:4px;font-size:13px;">ID #${idx}</div>
-          <button class="mini" style="margin-top:6px;background:rgba(34,211,238,.18);border:1px solid rgba(34,211,238,.5);padding:6px 8px;border-radius:10px">Ver información</button>`;
+          <div style="opacity:.8;margin-top:4px;font-size:13px;">${Math.round(sw/devicePixelRatio)}×${Math.round(sh/devicePixelRatio)}px</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="mini" data-id="${id}" style="background:rgba(34,211,238,.18);border:1px solid rgba(34,211,238,.5);padding:6px 8px;border-radius:10px">Seleccionar</button>
+            <button class="mini info" data-id="${id}" style="background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.5);padding:6px 8px;border-radius:10px">Ver información</button>
+          </div>`;
         list.appendChild(li);
+      });
 
-        li.querySelector('button').addEventListener('click', async ()=>{
-          if (!onlineInfoEl.checked){ showInfoCard({title:nombreES, summary:'(Información en línea desactivada)'}); return; }
-          const info = await fetchWikiSummary(nombreES);
-          showInfoCard({title: info.title, summary: info.summary});
+      // Delegación de clicks en panel
+      list.querySelectorAll('button.mini').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const id = parseInt(e.currentTarget.getAttribute('data-id'),10);
+          if (e.currentTarget.classList.contains('info')) {
+            await showInfoForId(id);
+          } else {
+            selectDetectionById(id);
+          }
         });
       });
     }
+
+    function selectDetectionById(id){
+      selectedId = id;
+      // marcar visualmente
+      for (const [k,el] of tags){ el.classList.toggle('pinned', k===id); }
+      // si están ocultas las etiquetas pero tenemos un pin, mostrar sólo la fija
+      document.body.classList.toggle('hide-tags', toggleTags.checked ? false : true);
+      // abrir ficha
+      showInfoForId(id);
+    }
+
+    async function showInfoForId(id){
+      const d = latestPreds.find(p=>p.id===id);
+      if (!d) return;
+      if (fetchAbort) fetchAbort.abort();
+      fetchAbort = new AbortController();
+
+      const nombreES = toES(d.class);
+      let info = { title: nombreES, summary: 'Sin resumen disponible.' };
+      if (onlineInfoEl.checked){
+        info = await fetchWikiSummary(nombreES);
+      }
+      // recetas si comida
+      let recipes = [];
+      if (onlineInfoEl.checked && (foodSet.has(d.class) || foodSet.has(nombreES))){
+        recipes = await fetchRecipesIfFood(nombreES);
+      }
+      showInfoCard({title: info.title, summary: info.summary, recipes});
+    }
+
+    // Tap/click en el video: seleccionar la detección más cercana al punto
+    hit.addEventListener('click', (ev)=>{
+      const rect = hit.getBoundingClientRect();
+      const x = (ev.clientX - rect.left) * devicePixelRatio;
+      const y = (ev.clientY - rect.top) * devicePixelRatio;
+      let best = null, bestDist = Infinity;
+
+      latestPreds.forEach(d=>{
+        const cx = d.x + d.w/2, cy = d.y + d.h/2;
+        // penaliza cajas que no contengan el punto
+        const inside = (x>=d.x && x<=d.x+d.w && y>=d.y && y<=d.y+d.h);
+        const dist = Math.hypot(cx-x, cy-y) + (inside?0:200); // preferir las que contienen
+        if (dist < bestDist){ bestDist=dist; best=d; }
+      });
+      if (best) selectDetectionById(best.id);
+    });
 
     async function loop(){
       if (!running || !model) return;
@@ -274,34 +398,49 @@ video, canvas { pointer-events: none; }
       if (frameCount % skip === 0){
         const threshold = parseFloat(threshEl.value || '0.30');
         const preds = await model.detect(video);
-        // Filtrar por umbral de confianza (más bajo = más sensible)
-        drawDetections(preds.filter(p => p.score >= threshold));
+        // filtrar ruido y mínimo tamaño para estabilidad
+        const minSide = 20 * devicePixelRatio;
+        const filtered = preds.filter(p => p.score >= threshold && p.bbox[2] >= minSide && p.bbox[3] >= minSide);
+        drawDetections(filtered);
       }
       rafId = requestAnimationFrame(loop);
     }
 
-    // Cargar modelo (lite = más rápido en móviles)
-    cocoSsd.load({base:'lite_mobilenet_v2'}).then(m=>{
-      model=m; statusEl.textContent='Modelo listo';
-    }).catch(e=>{
-      console.error(e); statusEl.textContent='Error al cargar modelo';
-    });
+    async function loadModel(){
+      statusEl.textContent = 'Cargando modelo…';
+      model = await cocoSsd.load({ base: modelSel.value });
+      statusEl.textContent = `Modelo listo (${modelSel.value})`;
+    }
 
-    // UI
+    // ===== Eventos UI =====
     btnStart.addEventListener('click', startCamera);
     btnStop.addEventListener('click', stopCamera);
+    modelSel.addEventListener('change', async ()=>{
+      if (model) { model = null; }
+      await loadModel();
+    });
+    toggleTags.addEventListener('change', ()=>{
+      document.body.classList.toggle('hide-tags', !toggleTags.checked);
+    });
+    toggleCompact.addEventListener('change', ()=>{
+      document.body.classList.toggle('compact', toggleCompact.checked);
+      // actualizar clases de tags existentes
+      for (const [,el] of tags){ el.classList.toggle('compacto', toggleCompact.checked); }
+    });
 
-    // Pedir permiso breve para poblar nombres de cámaras (móviles suelen requerir gesto; si falla, igual intentamos enumerar)
+    // permisos para listar cámaras
     try{
       const tmp = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
       tmp.getTracks().forEach(t=>t.stop());
       await enumerateCams();
     }catch{ await enumerateCams(); }
 
-    // Ajustar canvas al inicio
+    // cargar modelo inicial
+    await loadModel();
+
+    // Ajustar canvas
     resizeCanvas();
   })();
   </script>
 </body>
 </html>
-
