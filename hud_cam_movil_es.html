@@ -3,662 +3,464 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>HUD Cámara – Jarvis ES</title>
+<title>Sistema de Vigilancia • Visor IA</title>
 <style>
-  :root {
-    --bg:#0b1020; --fg:#e6f3ff; --accent:#6ee7ff; --accent2:#22d3ee; --violet:#7c3aed; --grid: rgba(110,231,255,0.08);
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:radial-gradient(1200px 600px at 70% 10%,#111a33,var(--bg));color:var(--fg);font-family:Inter,ui-sans-serif,system-ui;overflow:hidden}
-  .grid{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px}
-
-  .topbar{position:fixed;top:env(safe-area-inset-top,12px);left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.6);backdrop-filter:blur(6px);border-radius:14px;z-index:1000}
-  .brand{font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.9;font-size:14px}
+  :root { --bg:#0b0f1a; --fg:#e5ecf3; --line:#2a3650; --accent:#3aa0ff; --warn:#ffb020; --ok:#19c37d; --violet:#7c3aed; }
+  *{box-sizing:border-box} body{margin:0;background:#0b0f1a;color:var(--fg);font-family:ui-sans-serif,system-ui,Inter;overflow:hidden}
+  /* Layout */
+  .topbar{position:fixed;top:env(safe-area-inset-top,8px);left:8px;right:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);background:rgba(8,12,18,.8);backdrop-filter:blur(4px);border-radius:10px;z-index:1000}
+  .brand{font-weight:700;letter-spacing:.04em}
   .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  button,select,input[type=range]{background:rgba(110,231,255,.1);color:var(--fg);border:1px solid rgba(110,231,255,.4);padding:8px 10px;border-radius:10px}
-  button{cursor:pointer} button:disabled{opacity:.5;cursor:not-allowed} button:hover{border-color:var(--accent)}
   label{font-size:12px;opacity:.95;display:flex;gap:6px;align-items:center}
+  select,input[type=range],input[type=text]{background:#0f1626;color:var(--fg);border:1px solid #25324a;border-radius:8px;padding:7px 8px}
+  button{background:#0f1626;color:var(--fg);border:1px solid #25324a;border-radius:8px;padding:8px 10px;cursor:pointer}
+  button:disabled{opacity:.6;cursor:not-allowed}
   .stat{font-size:12px;opacity:.85}
-
-  .stage{position:fixed;inset:0;display:grid;place-items:center;padding:108px 360px 24px 12px}
-  @media (max-width: 1024px){ .stage{padding:130px 12px 220px 12px} }
-
-  .view{position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;border:1px solid rgba(110,231,255,.25);border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#000;z-index:1}
+  .stage{position:fixed;inset:0;display:grid;grid-template-columns:1fr 340px;gap:10px;padding:70px 8px 8px 8px}
+  @media (max-width: 1024px){ .stage{grid-template-columns:1fr;grid-template-rows:1fr 42vh;gap:8px;padding:110px 8px 8px} }
+  .view{position:relative;width:100%;height:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#000}
   video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
-  .hitlayer{position:absolute;inset:0;pointer-events:auto}
-
-  /* HUD extra */
-  .reticle{position:absolute;inset:0;pointer-events:none}
-  .reticle:before,.reticle:after{
-    content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    width:32vmin;height:32vmin;border:1px solid rgba(110,231,255,.35);border-radius:50%;
-    box-shadow:0 0 40px rgba(110,231,255,.2) inset;
-  }
-  .reticle:after{width:10vmin;height:10vmin;border-color:rgba(124,58,237,.35)}
-  .scanline{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(110,231,255,.7),transparent);animation:scan 2.8s linear infinite}
-  @keyframes scan{0%{top:0%}100%{top:100%}}
-
-  .radar{position:absolute;left:14px;bottom:14px;width:120px;height:120px;border-radius:50%;border:1px solid rgba(110,231,255,.3);overflow:hidden;opacity:.9;pointer-events:none}
-  .radar:before{content:"";position:absolute;inset:0;background:
-    radial-gradient(circle at center, rgba(110,231,255,.25) 0 1px, transparent 1px),
-    radial-gradient(circle at center, rgba(110,231,255,.15) 0 50%, transparent 50%);
-    background-size:10px 10px, 100% 100%;
-  }
-  .sweep{position:absolute;left:0;top:0;width:100%;height:100%;background:conic-gradient(from 0deg, rgba(110,231,255,.5), transparent 60%);transform-origin:center;animation:sweep 3.5s linear infinite}
-  @keyframes sweep{to{transform:rotate(360deg)}}
-
-  .tag{position:absolute;transform:translate(-50%,-100%);background:rgba(10,15,30,.85);backdrop-filter:blur(4px);border:1px solid rgba(110,231,255,.6);border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:auto}
-  .tag.compacto{padding:3px 6px;font-size:12px;border-radius:10px}
-  .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:8px;box-shadow:0 0 10px var(--accent)}
-  .tag .label{font-weight:700;margin-right:6px}
-  .tag .conf{opacity:.8;font-variant-numeric:tabular-nums}
-  .tag.pinned{border-color:var(--violet);box-shadow:0 0 0 2px rgba(124,58,237,.35)}
-
-  .side{position:fixed;top:108px;right:12px;bottom:12px;width:350px;border:1px solid rgba(110,231,255,.25);background:rgba(8,12,26,.55);backdrop-filter:blur(6px);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:1000}
-  @media (max-width: 1024px){ .side{top:auto;right:12px;left:12px;bottom:12px;width:auto;max-height:46vh} }
-  .side h3{margin:4px 6px 0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
-  .panel{flex:1;overflow:auto;padding:8px;border:1px dashed rgba(110,231,255,.25);border-radius:12px}
-  .item{padding:8px;border-bottom:1px dashed rgba(110,231,255,.15)}
-  .item:last-child{border-bottom:0}
-  .badge{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid rgba(110,231,255,.5);font-size:11px;margin-left:6px;opacity:.9}
-  .footer{font-size:12px;opacity:.75;padding:6px 8px}
-
-  .infoCard{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(92vw,820px);z-index:1100;background:rgba(6,10,22,.97);border:1px solid rgba(110,231,255,.35);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
-  .infoTitle{font-weight:800;margin:0 0 6px 0;font-size:16px}
-  .infoBody{font-size:14px;line-height:1.4;opacity:.95}
-  .chip{display:inline-block;border:1px solid rgba(110,231,255,.4);border-radius:999px;padding:4px 8px;margin:2px 6px 2px 0;font-size:12px}
-  .close{float:right;background:transparent;border:1px solid rgba(110,231,255,.4);border-radius:10px;padding:4px 8px}
-
-  .switch{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(110,231,255,.35);padding:6px 8px;border-radius:10px}
-  .switch input{accent-color:#22d3ee}
-
-  .hide-tags .tag{display:none}
-  .compact .tag{padding:3px 6px;font-size:12px;border-radius:10px}
-
-  .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(6,10,22,.9);border:1px solid rgba(110,231,255,.35);padding:8px 12px;border-radius:10px;z-index:1500;font-size:13px}
+  .fit-contain video,.fit-contain canvas{object-fit:contain}
+  .hit{position:absolute;inset:0;pointer-events:auto}
+  .roi{position:absolute;border:1.5px dashed var(--accent);background:rgba(58,160,255,.08);display:none}
+  .ret{position:absolute;inset:0;pointer-events:none}
+  .ret:before,.ret:after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid #1e2942;border-radius:2px}
+  .ret:before{width:38%;height:38%}
+  .ret:after{width:12%;height:12%;border-color:#2b3b61}
+  .scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(58,160,255,.6),transparent);animation:scan 3s linear infinite}
+  @keyframes scan{0%{top:0}100%{top:100%}}
+  /* Side panel */
+  .side{border:1px solid var(--line);border-radius:10px;background:#0f1626;display:flex;flex-direction:column;overflow:hidden}
+  .side h3{margin:10px 12px 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+  .panel{flex:1;overflow:auto;border-top:1px solid #1b2740}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #141d32;font-size:13px}
+  .row strong{font-weight:700}
+  .row small{opacity:.8}
+  .feed{height:34%;overflow:auto;border-top:1px solid #1b2740;font-size:12px}
+  .feed .log{padding:6px 12px;border-bottom:1px solid #141d32;opacity:.9}
+  /* Tags */
+  .tag{position:absolute;transform:translate(-50%,-100%);background:rgba(9,13,24,.92);border:1px solid #2b3b61;border-radius:8px;padding:4px 8px;font-size:12px;white-space:nowrap;pointer-events:auto}
+  .tag .id{opacity:.75;margin-right:6px}
+  .tag .conf{opacity:.8}
+  .tag.pinned{border-color:var(--violet)}
+  /* Info card */
+  .card{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);max-width:min(92vw,820px);background:#0f1626;border:1px solid var(--line);border-radius:10px;padding:10px 12px;z-index:1100}
+  .card h4{margin:0 0 6px;font-size:15px}
+  .card .meta{font-size:12px;opacity:.85}
+  .chip{display:inline-block;border:1px solid #2b3b61;border-radius:999px;padding:3px 8px;margin:2px 6px 0 0;font-size:12px}
+  .close{float:right;background:transparent;border:1px solid #25324a;border-radius:8px;padding:4px 8px}
+  /* Toggles */
+  .switch{display:inline-flex;align-items:center;gap:6px;border:1px solid #25324a;padding:6px 8px;border-radius:8px}
+  .switch input{accent-color:#3aa0ff}
+  /* Toast */
+  .toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#0f1626;border:1px solid var(--line);padding:7px 10px;border-radius:8px;z-index:1500;font-size:12px}
 </style>
 </head>
 <body>
-  <div class="grid"></div>
-
   <div class="topbar">
-    <div class="brand">HUD • Jarvis (ES)</div>
+    <div class="brand">SISTEMA DE VIGILANCIA • Visor IA</div>
     <div class="controls">
-      <select id="cameraSelect" title="Cámara"></select>
+      <select id="camera"></select>
       <label>Resolución
-        <select id="resolutionSel">
-          <option value="640x480">640×480</option>
-          <option value="1280x720" selected>1280×720</option>
-          <option value="1920x1080">1920×1080</option>
+        <select id="res">
+          <option>640x480</option><option selected>1280x720</option><option>1920x1080</option>
         </select>
       </label>
       <label>Encuadre
-        <select id="fitSel">
-          <option value="contain" selected>Ver todo</option>
-          <option value="cover">Llenar</option>
+        <select id="fit"><option value="contain" selected>Ver todo</option><option value="cover">Llenar</option></select>
+      </label>
+      <button id="start">Iniciar</button>
+      <button id="stop" disabled>Detener</button>
+
+      <label>Detector
+        <select id="detector">
+          <option value="coco" selected>Local (COCO • 80)</option>
+          <option value="pro">Pro (600+ • Roboflow)</option>
         </select>
       </label>
-      <button id="btnStart">Iniciar</button>
-      <button id="btnStop" disabled>Detener</button>
-
-      <label>Modelo
-        <select id="modelSel">
-          <option value="lite_mobilenet_v2" selected>Rápido</option>
-          <option value="mobilenet_v2">Preciso</option>
-        </select>
+      <label id="rfBox" style="display:none">Modelo Pro
+        <input id="rfModel" placeholder="p.ej. open-images/1" style="width:140px">
+        <input id="rfKey" placeholder="API key" style="width:120px">
+        <button id="rfSave">Guardar</button>
       </label>
 
-      <label>Sensibilidad
-        <input id="thresh" type="range" min="0.05" max="0.90" step="0.01" value="0.30"/>
-        <span id="threshVal" class="stat">30% (más bajo = detecta más)</span>
+      <label>Umbral
+        <input id="th" type="range" min="0.05" max="0.95" step="0.01" value="0.35">
+        <span id="thVal" class="stat">35% (↓=más detecciones / ↑=más preciso)</span>
       </label>
 
       <label>Frecuencia
-        <select id="freq">
-          <option value="1">Cada cuadro</option>
-          <option value="2" selected>1/2</option>
-          <option value="3">1/3</option>
-          <option value="5">1/5</option>
-        </select>
+        <select id="freq"><option>1</option><option selected>2</option><option>3</option><option>5</option></select>
       </label>
 
-      <label>Máx. etiquetas
-        <select id="maxTags">
-          <option>3</option><option selected>5</option><option>8</option><option>12</option>
-        </select>
-      </label>
-
-      <span class="switch"><input id="toggleTags" type="checkbox" checked> Etiquetas</span>
-      <span class="switch"><input id="toggleCompact" type="checkbox"> Compacto</span>
-      <span class="switch"><input id="onlineInfo" type="checkbox" checked> Info en línea</span>
-      <span class="switch"><input id="narrator" type="checkbox"> Narrador</span>
-      <span class="switch"><input id="torch" type="checkbox"> Linterna</span>
-
-      <button id="btnDict">Diccionario</button>
-      <span id="status" class="stat">Cargando modelo…</span>
-      <span id="perf" class="stat">FPS: --</span>
+      <span class="switch"><input id="showTags" type="checkbox" checked>Etiquetas</span>
+      <span class="switch"><input id="compact" type="checkbox">Compacto</span>
+      <span class="switch"><input id="infoOnline" type="checkbox">Wikipedia</span>
+      <span class="switch"><input id="torch" type="checkbox" disabled>Linterna</span>
+      <span id="fps" class="stat">FPS: --</span>
+      <span id="status" class="stat">Listo</span>
     </div>
   </div>
 
   <div class="stage">
-    <div class="view" id="view">
+    <!-- VIEW -->
+    <div class="view fit-contain" id="view">
       <video id="video" playsinline muted></video>
       <canvas id="canvas"></canvas>
-      <div class="hitlayer" id="hit" title="Toca para seleccionar el objeto más cercano"></div>
+      <div class="hit" id="hit"></div>
+      <div class="roi" id="roi"></div>
+      <div class="ret"></div>
+      <div class="scan"></div>
+    </div>
 
-      <!-- HUD extra -->
-      <div class="reticle"></div>
-      <div class="scanline"></div>
-      <div class="radar"><div class="sweep"></div></div>
+    <!-- SIDE -->
+    <div class="side">
+      <h3>Objetos</h3>
+      <div class="panel" id="list"></div>
+      <h3>Eventos</h3>
+      <div class="feed" id="feed"></div>
     </div>
   </div>
 
-  <aside class="side">
-    <h3>Detecciones</h3>
-    <div class="panel" id="list"></div>
-    <div class="footer">
-      Tips: Luz suficiente, distancia media, cámara trasera.  
-      Sensibilidad ↓ (ej. 20%) = detecta más; Sensibilidad ↑ (ej. 60%) = más estricta. Doble-tap en etiqueta para “pin”.
-    </div>
-  </aside>
+  <!-- Info -->
+  <div class="card" id="card" style="display:none"></div>
+  <div class="toast" id="toast" style="display:none"></div>
 
-  <!-- Modal Diccionario -->
-  <div class="modal" id="dictModal" style="display:none;align-items:center;justify-content:center;">
-    <div class="box" style="width:min(92vw,760px);background:#0b132a;border:1px solid rgba(110,231,255,.35);border-radius:14px;padding:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h4 style="margin:4px 0 10px 0">Diccionario personal (se guarda en este dispositivo)</h4>
-        <button id="dictClose">Cerrar</button>
-      </div>
-      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
-        <input id="dictBase" placeholder="Etiqueta base (inglés del modelo, ej: car)" />
-        <input id="dictAlias" placeholder="Alias en español (ej: carro)" />
-        <button id="dictSave">Guardar alias</button>
-      </div>
-      <div class="dictList" id="dictList" style="max-height:40vh;overflow:auto;margin-top:8px;border:1px dashed rgba(110,231,255,.25);padding:8px;border-radius:10px"></div>
-    </div>
-  </div>
-
-  <!-- TensorFlow.js & COCO-SSD -->
+  <!-- libs -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <!-- Roboflow SDK (opcional; sólo si activas modo Pro) -->
+  <script src="https://cdn.roboflow.com/0.2.26/roboflow.js"></script>
 
-  <script>
-  (async function(){
-    const $ = s => document.querySelector(s);
+<script>
+(async function(){
+  const $ = s => document.querySelector(s);
+  const els = {
+    cam: $('#camera'), res: $('#res'), fit: $('#fit'), start: $('#start'), stop: $('#stop'),
+    detector: $('#detector'), rfBox: $('#rfBox'), rfModel: $('#rfModel'), rfKey: $('#rfKey'), rfSave: $('#rfSave'),
+    th: $('#th'), thVal: $('#thVal'), freq: $('#freq'),
+    showTags: $('#showTags'), compact: $('#compact'), infoOnline: $('#infoOnline'),
+    torch: $('#torch'), fps: $('#fps'), status: $('#status'),
+    view: $('#view'), video: $('#video'), canvas: $('#canvas'), hit: $('#hit'), roi: $('#roi'),
+    list: $('#list'), feed: $('#feed'), card: $('#card'), toast: $('#toast')
+  };
+  const ctx = els.canvas.getContext('2d', { willReadFrequently:true });
 
-    const video = $('#video'), canvas = $('#canvas'), ctx = canvas.getContext('2d', {willReadFrequently:true});
-    const view = $('#view'), list = $('#list'), cameraSelect = $('#cameraSelect');
-    const btnStart = $('#btnStart'), btnStop = $('#btnStop'), statusEl = $('#status');
-    const threshEl = $('#thresh'), freqEl = $('#freq'), onlineInfoEl = $('#onlineInfo');
-    const modelSel = $('#modelSel'), hit = $('#hit'), toggleTags = $('#toggleTags'), toggleCompact = $('#toggleCompact'), maxTagsSel = $('#maxTags');
-    const fitSel = $('#fitSel'), resSel = $('#resolutionSel'), threshVal = $('#threshVal');
-    const narratorEl = $('#narrator'), torchEl = $('#torch'), perfEl = $('#perf');
-    const btnDict = $('#btnDict'), dictModal = $('#dictModal'), dictClose = $('#dictClose'), dictSave = $('#dictSave'), dictList = $('#dictList'), dictBase = $('#dictBase'), dictAlias = $('#dictAlias');
+  /* ---------- Estado ---------- */
+  let stream=null, track=null, running=false, raf=0, model=null, rfModel=null;
+  let latest=[], tracks=[], nextTrackId=1, prevStamp=performance.now();
+  let roi=null; // {x,y,w,h} coords en canvas
+  const CFG = { minSide: 18, alpha: 0.8, iouMatch: 0.25, maxTags: 12 };
 
-    let stream=null, track=null, model=null, running=false, rafId=0, frameCount=0, latestPreds=[];
-    let lastTime = performance.now(), fps=0;
-    const tags = new Map(); // id -> HTMLElement
-    const infoCache = new Map(); // nombreES -> {title, summary, url, recipes}
-    let selectedId = null;
-    let prevBoxes = []; // para suavizado temporal
-    const alpha = 0.75; // suavizado (0..1) más alto = más estable
+  /* ---------- Util ---------- */
+  const toast = (msg)=>{ els.toast.textContent=msg; els.toast.style.display='block'; clearTimeout(els.toast._t); els.toast._t=setTimeout(()=>els.toast.style.display='none',1600); };
+  const log = (s)=>{ const div=document.createElement('div'); div.className='log'; div.textContent = `[${new Date().toLocaleTimeString()}] ${s}`; els.feed.prepend(div); };
+  const parseRes = v => { const [w,h]=v.split('x').map(Number); return {width:w,height:h}; };
+  const toES = (en)=>{ // base + alias corporativo
+    const base = {
+      person:'persona', bicycle:'bicicleta', car:'coche', motorcycle:'motocicleta', airplane:'avión', bus:'autobús', train:'tren', truck:'camión', boat:'barco',
+      traffic_light:'semáforo', fire_hydrant:'hidrante', stop_sign:'señal de pare', parking_meter:'parquímetro', bench:'banco',
+      bird:'pájaro', cat:'gato', dog:'perro', horse:'caballo', sheep:'oveja', cow:'vaca', elephant:'elefante', bear:'oso', zebra:'cebra', giraffe:'jirafa',
+      backpack:'mochila', umbrella:'paraguas', handbag:'bolso', tie:'corbata', suitcase:'maleta', frisbee:'frisbi', skis:'esquís', snowboard:'tabla',
+      sports_ball:'balón', kite:'cometa', baseball_bat:'bate', baseball_glove:'guante', skateboard:'patineta', surfboard:'tabla de surf', tennis_racket:'raqueta',
+      bottle:'botella', wine_glass:'copa', cup:'taza', fork:'tenedor', knife:'cuchillo', spoon:'cuchara', bowl:'cuenco',
+      banana:'banano', apple:'manzana', sandwich:'sándwich', orange:'naranja', broccoli:'brócoli', carrot:'zanahoria', hot_dog:'perro caliente', pizza:'pizza', donut:'dónut', cake:'torta',
+      chair:'silla', couch:'sofá', potted_plant:'planta en maceta', bed:'cama', dining_table:'mesa', toilet:'inodoro', tv:'televisor',
+      laptop:'portátil', mouse:'ratón', remote:'control remoto', keyboard:'teclado', cell_phone:'teléfono', microwave:'microondas', oven:'horno', toaster:'tostadora',
+      sink:'lavamanos', refrigerator:'nevera', book:'libro', clock:'reloj', vase:'jarrón', scissors:'tijeras', teddy_bear:'oso de peluche', hair_drier:'secador', toothbrush:'cepillo de dientes'
+    };
+    const dict = JSON.parse(localStorage.getItem('aliasDict')||'{}');
+    return dict[en] || base[en] || en.replace(/_/g,' ');
+  };
+  const pct = v => (v*100).toFixed(0)+'%';
 
-    // ===== Utilidades =====
-    const toast = (m=>{ let t; return (msg)=>{ if(t) t.remove(); t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t&&t.remove(),1800);} })();
-
-    function getDict(){ try { return JSON.parse(localStorage.getItem('jarvisDict')||'{}'); } catch { return {}; } }
-    function setDict(obj){ localStorage.setItem('jarvisDict', JSON.stringify(obj)); renderDict(); }
-    function renderDict(){
-      const d = getDict();
-      dictList.innerHTML = Object.keys(d).length ? '' : '<div style="opacity:.8">Vacío. Agrega alias arriba.</div>';
-      Object.entries(d).forEach(([base, alias])=>{
-        const row = document.createElement('div');
-        row.className='row';
-        row.innerHTML = `<div style="flex:1"><code>${base}</code> → <strong>${alias}</strong></div>
-                         <button data-k="${base}">Eliminar</button>`;
-        row.querySelector('button').addEventListener('click', (e)=>{
-          const k = e.currentTarget.getAttribute('data-k'); const cur = getDict(); delete cur[k]; setDict(cur);
-        });
-        dictList.appendChild(row);
-      });
+  /* ---------- Detector plugins ---------- */
+  const DET = {
+    name:'coco',
+    async load(){ this.m = await cocoSsd.load({ base: 'mobilenet_v2' }); },
+    async infer(video){
+      const out = await this.m.detect(video);
+      return out.map(o=>({ cls:o.class, score:o.score, bbox:o.bbox })); // [x,y,w,h]
     }
+  };
 
-    // Traducción base
-    const mapEs = { person:'persona', bicycle:'bicicleta', car:'coche', motorcycle:'motocicleta', airplane:'avión', bus:'autobús', train:'tren', truck:'camión', boat:'barco', traffic_light:'semáforo', fire_hydrant:'hidrante', stop_sign:'señal de stop', parking_meter:'parquímetro', bench:'banco', bird:'pájaro', cat:'gato', dog:'perro', horse:'caballo', sheep:'oveja', cow:'vaca', elephant:'elefante', bear:'oso', zebra:'cebra', giraffe:'jirafa', backpack:'mochila', umbrella:'paraguas', handbag:'bolso', tie:'corbata', suitcase:'maleta', frisbee:'frisbi', skis:'esquís', snowboard:'tabla de snowboard', sports_ball:'balón', kite:'cometa', baseball_bat:'bate de béisbol', baseball_glove:'guante de béisbol', skateboard:'patineta', surfboard:'tabla de surf', tennis_racket:'raqueta de tenis', bottle:'botella', wine_glass:'copa de vino', cup:'taza', fork:'tenedor', knife:'cuchillo', spoon:'cuchara', bowl:'cuenco', banana:'banano', apple:'manzana', sandwich:'sándwich', orange:'naranja', broccoli:'brócoli', carrot:'zanahoria', hot_dog:'perro caliente', pizza:'pizza', donut:'dónut', cake:'torta', chair:'silla', couch:'sofá', potted_plant:'planta en maceta', bed:'cama', dining_table:'mesa de comedor', toilet:'inodoro', tv:'televisor', laptop:'portátil', mouse:'ratón', remote:'control remoto', keyboard:'teclado', cell_phone:'teléfono móvil', microwave:'microondas', oven:'horno', toaster:'tostadora', sink:'lavamanos', refrigerator:'refrigerador', book:'libro', clock:'reloj', vase:'jarrón', scissors:'tijeras', teddy_bear:'oso de peluche', hair_drier:'secador de pelo', toothbrush:'cepillo de dientes' };
-    function toES(label){ const user = getDict(); if (user[label]) return user[label]; return mapEs[label] || label.replace(/_/g,' '); }
-
-    const foodSet = new Set(['banana','apple','orange','broccoli','carrot','pizza','sandwich','hot_dog','donut','cake']);
-    const esToEnFood = { 'banano':'banana', 'manzana':'apple', 'naranja':'orange', 'brócoli':'broccoli', 'zanahoria':'carrot', 'perro caliente':'hot dog', 'sándwich':'sandwich', 'dónut':'donut', 'torta':'cake', 'pizza':'pizza' };
-
-    // Wikipedia ES
-    async function fetchWikiSummary(termES){
-      const key = termES.toLowerCase();
-      if (infoCache.has(key)) return infoCache.get(key);
-      const result = { title: termES, summary: 'Sin resumen disponible.', url: null, recipes: [] };
-      try {
-        const sURL = `https://es.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(termES)}&limit=1`;
-        const s = await fetch(sURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
-        let title = (s?.pages && s.pages[0]?.title) ? s.pages[0].title : termES;
-        const sumURL = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-        const data = await fetch(sumURL, {headers:{'Accept':'application/json'}}).then(r=>r.json());
-        result.title = data?.title || title;
-        result.summary = data?.extract || result.summary;
-        result.url = data?.content_urls?.desktop?.page || data?.content_urls?.mobile?.page || null;
-      } catch(e){ /* ignore */ }
-      infoCache.set(key, result);
-      return result;
+  const RF = {
+    name:'pro',
+    async load(){
+      const cfg = getRF();
+      if (!cfg.key || !cfg.model) throw new Error('Configura modelo/clave Roboflow');
+      const [mName, mVer] = cfg.model.split('/');
+      this.m = await window.roboflow.auth({ publishable_key: cfg.key }).load({ model: mName, version: parseInt(mVer||'1',10) });
+    },
+    async infer(video){
+      const preds = await this.m.detect(video);
+      // Roboflow -> x,y (centro), width,height
+      return preds?.predictions?.map(p=>{
+        return { cls: (p.class||p.top||'obj').toString(), score: p.confidence||p.score||0,
+          bbox: [p.x - p.width/2, p.y - p.height/2, p.width, p.height] };
+      }) || [];
     }
+  };
 
-    // Recetas con TheMealDB (público)
-    async function fetchRecipesIfFood(nombreES){
-      const key = `recipes:${nombreES.toLowerCase()}`;
-      if (infoCache.has(key)) return infoCache.get(key);
-      const en = esToEnFood[nombreES] || nombreES;
-      const out = [];
-      try {
-        let r = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(en)}`).then(x=>x.json());
-        if (r && r.meals) r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
-        if (out.length === 0) {
-          r = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(en)}`).then(x=>x.json());
-          if (r && r.meals) r.meals.slice(0,5).forEach(m => out.push({name: m.strMeal, url:`https://www.themealdb.com/meal/${m.idMeal}`}));
-        }
-      } catch(e){ /* ignore */ }
-      infoCache.set(key, out);
-      return out;
-    }
+  function getRF(){
+    return {
+      model: localStorage.getItem('rfModel')||'',
+      key: localStorage.getItem('rfKey')||''
+    };
+  }
 
-    function speak(txt){ if(!narratorEl.checked) return; try{ const u=new SpeechSynthesisUtterance(txt); u.lang='es-ES'; speechSynthesis.speak(u);}catch{} }
+  /* ---------- Cámara ---------- */
+  async function enumerateCams(){
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const vids = devs.filter(d=>d.kind==='videoinput');
+    els.cam.innerHTML = '';
+    vids.forEach((d,i)=>{ const o=document.createElement('option'); o.value=d.deviceId; o.textContent=d.label || `Cámara ${i+1}`; els.cam.appendChild(o); });
+  }
 
-    // ===== Cámara =====
-    function parseRes(v){ const [w,h] = v.split('x').map(Number); return {width:w, height:h}; }
-
-    async function enumerateCams(){
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const vids = devices.filter(d => d.kind === 'videoinput');
-      cameraSelect.innerHTML = '';
-      vids.forEach((d,i)=>{
-        const opt = document.createElement('option');
-        opt.value = d.deviceId; opt.textContent = d.label || `Cámara ${i+1}`;
-        cameraSelect.appendChild(opt);
-      });
-    }
-
-    async function startCamera(){
-      try{
-        if (stream) stopCamera();
-        const deviceId = cameraSelect.value || undefined;
-        const {width, height} = parseRes($('#resolutionSel').value || '1280x720');
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: deviceId ? { deviceId: { exact: deviceId }, width:{ideal:width}, height:{ideal:height} } :
-                            { facingMode: 'environment', width:{ideal:width}, height:{ideal:height} },
-          audio:false
-        });
-        video.srcObject = stream;
-        await video.play(); // iOS requiere gesto
-        track = stream.getVideoTracks()[0];
-        setupTorch(track);
-        setupZoomControl(track);
-
-        applyFit();
-        resizeCanvas();
-        running = true; frameCount = 0; selectedId=null; prevBoxes=[];
-        btnStart.disabled = true; btnStop.disabled = false;
-        loop();
-        toast('Cámara iniciada'); speak('Cámara lista');
-      }catch(err){
-        console.error(err);
-        alert('No se pudo iniciar la cámara. Usa HTTPS o localhost, y concede permisos.');
-      }
-    }
-
-    function stopCamera(){
-      running=false; cancelAnimationFrame(rafId);
-      if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; track=null; }
-      btnStart.disabled=false; btnStop.disabled=true;
-      toast('Cámara detenida'); speak('Cámara detenida');
-    }
-
-    function applyFit(){
-      const mode = $('#fitSel').value || 'contain';
-      video.style.objectFit = mode;
-      canvas.style.objectFit = mode;
-    }
-
-    function resizeCanvas(){
-      const rect = view.getBoundingClientRect();
-      canvas.width = rect.width * devicePixelRatio;
-      canvas.height = rect.height * devicePixelRatio;
-    }
-    window.addEventListener('resize', resizeCanvas);
-
-    async function setupTorch(track){
-      const caps = track.getCapabilities ? track.getCapabilities() : {};
-      if (caps.torch !== undefined) {
-        torchEl.disabled = false;
-        torchEl.onchange = async ()=>{ try { await track.applyConstraints({ advanced: [{ torch: torchEl.checked }] }); } catch(e){} };
-      } else {
-        torchEl.disabled = true; torchEl.checked = false;
-      }
-    }
-
-    async function setupZoomControl(track){
-      const caps = track.getCapabilities ? track.getCapabilities() : {};
-      let zoomCtl = $('#zoomCtl');
-      if (!zoomCtl){
-        zoomCtl = document.createElement('label');
-        zoomCtl.id='zoomCtl';
-        zoomCtl.innerHTML = `Zoom <input id="zoomRange" type="range" min="1" max="1" step="0.1" value="1"/><span id="zoomVal" class="stat">1×</span>`;
-        document.querySelector('.controls').appendChild(zoomCtl);
-      }
-      const range = $('#zoomRange'), zVal = $('#zoomVal');
-      if (caps.zoom){
-        range.min = caps.zoom.min || 1;
-        range.max = caps.zoom.max || 1;
-        range.step = caps.zoom.step || 0.1;
-        const settings = track.getSettings ? track.getSettings() : {};
-        range.value = settings.zoom || 1;
-        zVal.textContent = `${Number(range.value).toFixed(1)}×`;
-        range.oninput = async () => {
-          zVal.textContent = `${Number(range.value).toFixed(1)}×`;
-          try { await track.applyConstraints({ advanced: [{ zoom: Number(range.value) }] }); } catch(e){}
-        };
-        zoomCtl.style.display = 'flex';
-      } else {
-        zoomCtl.style.display = 'none';
-      }
-    }
-
-    // ===== Detección =====
-    function smoothBoxes(current){
-      // Emparejar por clase y superposición para suavizar
-      const matched = [];
-      current.forEach(c=>{
-        let best=null, bestIou=0, bi=-1;
-        prevBoxes.forEach((p,i)=>{
-          if (p.class!==c.class) return;
-          const iou = IoU(p, c);
-          if (iou>bestIou){ bestIou=iou; best=p; bi=i; }
-        });
-        const out = {...c};
-        if (best && bestIou>0.2){
-          out.x = alpha*best.x + (1-alpha)*c.x;
-          out.y = alpha*best.y + (1-alpha)*c.y;
-          out.w = alpha*best.w + (1-alpha)*c.w;
-          out.h = alpha*best.h + (1-alpha)*c.h;
-          matched.push(bi);
-        }
-        current[current.indexOf(c)] = out;
-      });
-      prevBoxes = current;
-      return current;
-    }
-
-    function IoU(a,b){
-      const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
-      const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
-      const inter=Math.max(0,x2-x1)*Math.max(0,y2-y1);
-      const ua=a.w*a.h + b.w*b.h - inter;
-      return ua>0 ? inter/ua : 0;
-    }
-
-    function drawDetections(preds){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      const vw = canvas.width, vh = canvas.height;
-      const vW = video.videoWidth, vH = video.videoHeight; if (!vW || !vH) return;
-
-      // Letterboxing
-      const canvasAspect = vw/vh, videoAspect = vW/vH;
-      let drawW, drawH, offX, offY;
-      if (videoAspect > canvasAspect){ drawW = vw; drawH = vw/videoAspect; offX=0; offY=(vh-drawH)/2; }
-      else { drawH = vh; drawW = vh*videoAspect; offY=0; offX=(vw-drawW)/2; }
-
-      // Limpiar UI (conserva el "pin")
-      list.innerHTML='';
-      for (const [id,el] of tags){ if (id!==selectedId){ el.remove(); tags.delete(id); } }
-
-      const maxTags = parseInt(maxTagsSel.value||'5',10);
-      const sorted = preds.slice().sort((a,b)=>b.score-a.score).slice(0,maxTags);
-      latestPreds = [];
-
-      sorted.forEach((p, idx)=>{
-        const sx = offX + (p.bbox[0] / vW) * drawW;
-        const sy = offY + (p.bbox[1] / vH) * drawH;
-        const sw = (p.bbox[2] / vW) * drawW;
-        const sh = (p.bbox[3] / vH) * drawH;
-
-        const nombreES = toES(p.class);
-        const id = idx;
-        latestPreds.push({ id, class:p.class, label:nombreES, score:p.score, x:sx, y:sy, w:sw, h:sh });
-
-        // Caja
-        ctx.lineWidth = 2 * devicePixelRatio;
-        ctx.strokeStyle = 'rgba(110,231,255,0.95)';
-        ctx.setLineDash([10*devicePixelRatio, 6*devicePixelRatio]);
-        ctx.strokeRect(sx, sy, sw, sh);
-        ctx.setLineDash([]);
-
-        // Tag
-        const mustShowTag = toggleTags.checked || id===selectedId;
-        if (mustShowTag){
-          let tag = tags.get(id);
-          if (!tag){
-            tag = document.createElement('div');
-            tag.className = 'tag';
-            tag.addEventListener('click', (ev)=>{
-              if (ev.detail===2) { // doble click/tap
-                selectedId = id; for (const [k,el] of tags){ el.classList.toggle('pinned', k===id); }
-                speak(`Fijado ${nombreES}`);
-              }
-              selectDetectionById(id);
-            });
-            view.appendChild(tag);
-            tags.set(id, tag);
-          }
-          tag.classList.toggle('compacto', toggleCompact.checked);
-          tag.classList.toggle('pinned', id===selectedId);
-          tag.style.left = ((sx + sw/2)/devicePixelRatio) + 'px';
-          tag.style.top  = (sy/devicePixelRatio) + 'px';
-          tag.innerHTML = `<span class="dot"></span><span class="label">${nombreES}</span><span class="conf">${(p.score*100).toFixed(0)}%</span>`;
-        }
-
-        // Panel
-        const li = document.createElement('div');
-        const rel = Math.round((sw*sh)/(vw*vh)*100);
-        li.className='item';
-        li.innerHTML = `<strong>${nombreES}</strong> <span class="badge">${(p.score*100).toFixed(0)}%</span>
-          <div style="opacity:.8;margin-top:4px;font-size:13px;">Ocupa ~${rel}% del encuadre</div>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="mini" data-id="${id}" style="background:rgba(34,211,238,.18);border:1px solid rgba(34,211,238,.5);padding:6px 8px;border-radius:10px">Seleccionar</button>
-            <button class="mini info" data-id="${id}" style="background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.5);padding:6px 8px;border-radius:10px">Ver información</button>
-          </div>`;
-        list.appendChild(li);
-      });
-
-      list.querySelectorAll('button.mini').forEach(btn=>{
-        btn.addEventListener('click', async (e)=>{
-          const id = parseInt(e.currentTarget.getAttribute('data-id'),10);
-          if (e.currentTarget.classList.contains('info')) {
-            await showInfoForId(id);
-          } else {
-            selectDetectionById(id);
-          }
-        });
-      });
-
-      // Auto-seleccionar el mejor objetivo si no hay “pin”
-      if (selectedId===null && latestPreds.length){
-        const best = latestPreds[0];
-        selectDetectionById(best.id, false); // no abrir tarjeta cada frame
-      }
-    }
-
-    function selectDetectionById(id, open=true){
-      selectedId = id;
-      for (const [k,el] of tags){ el.classList.toggle('pinned', k===id); }
-      document.body.classList.toggle('hide-tags', toggleTags.checked ? false : true);
-      if (open) showInfoForId(id);
-    }
-
-    async function showInfoForId(id){
-      const d = latestPreds.find(p=>p.id===id);
-      if (!d) return;
-      const nombreES = toES(d.class);
-      let info = { title: nombreES, summary: 'Sin resumen disponible.', url:null };
-      if (onlineInfoEl.checked){
-        info = await fetchWikiSummary(nombreES);
-      }
-      let recipes = [];
-      if (onlineInfoEl.checked && (foodSet.has(d.class) || foodSet.has(nombreES))){
-        recipes = await fetchRecipesIfFood(nombreES);
-      }
-      showInfoCard({title: info.title, summary: info.summary, url: info.url, recipes}, d.class);
-      speak(`${info.title}. ${(d.score*100).toFixed(0)} por ciento de confianza.`);
-    }
-
-    function showInfoCard({title, summary, url=null, recipes=[]}, baseLabel=null){
-      const old = document.querySelector('.infoCard'); if (old) old.remove();
-      const card = document.createElement('div'); card.className='infoCard';
-      const linkHTML = url ? `<div style="margin-top:6px"><a class="chip" href="${url}" target="_blank" rel="noopener">Wikipedia</a></div>` : '';
-      const recHTML = recipes && recipes.length ? `<div style="margin-top:8px"><strong>Recetas:</strong> ${recipes.map(r=>`<a class="chip" href="${r.url}" target="_blank" rel="noopener">${r.name}</a>`).join(' ')}</div>` : '';
-      const learnHTML = baseLabel ? `
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <span style="opacity:.85">¿Cómo quieres que nombre <code>${baseLabel}</code>?</span>
-          <input id="aliasInput" placeholder="ej: carro" style="flex:1;min-width:120px">
-          <button id="aliasSave">Guardar alias</button>
-        </div>` : '';
-      card.innerHTML = `
-        <button class="close" aria-label="Cerrar">✕</button>
-        <h4 class="infoTitle">${title}</h4>
-        <div class="infoBody">${summary}</div>
-        ${linkHTML}
-        ${recHTML}
-        ${learnHTML}`;
-      document.body.appendChild(card);
-      card.querySelector('.close').addEventListener('click', ()=> card.remove());
-      const aliasBtn = card.querySelector('#aliasSave');
-      if (aliasBtn){
-        aliasBtn.addEventListener('click', ()=>{
-          const v = (document.getElementById('aliasInput').value||'').trim();
-          if (!v) return;
-          const cur = getDict(); cur[baseLabel] = v; setDict(cur);
-          toast(`Aprendido: ${baseLabel} → ${v}`);
-        });
-      }
-    }
-
-    // Tap/click en el video: seleccionar la detección más cercana
-    hit.addEventListener('click', (ev)=>{
-      const rect = hit.getBoundingClientRect();
-      const x = (ev.clientX - rect.left) * devicePixelRatio;
-      const y = (ev.clientY - rect.top) * devicePixelRatio;
-      let best = null, bestDist = Infinity;
-      latestPreds.forEach(d=>{
-        const cx = d.x + d.w/2, cy = d.y + d.h/2;
-        const inside = (x>=d.x && x<=d.x+d.w && y>=d.y && y<=d.y+d.h);
-        const dist = Math.hypot(cx-x, cy-y) + (inside?0:200);
-        if (dist < bestDist){ bestDist=dist; best=d; }
-      });
-      if (best) selectDetectionById(best.id);
-    });
-
-    // ===== Bucle principal =====
-    async function loop(){
-      if (!running || !model) return;
-      const skip = parseInt(freqEl.value || '2', 10);
-      frameCount++;
-      if (frameCount % skip === 0){
-        const threshold = parseFloat(threshEl.value || '0.30');
-        const preds = await model.detect(video);
-        // filtrar ruido + tamaño mínimo
-        const minSide = 20 * devicePixelRatio;
-        let filtered = preds.filter(p => p.score >= threshold && p.bbox[2] >= minSide && p.bbox[3] >= minSide);
-        // normalizar a objetos con bbox nombrados y suavizar
-        const norm = filtered.map(p=>({ class:p.class, score:p.score, bbox:p.bbox }));
-        const smoothed = smoothBoxes(norm.map(n=>({ ...n, x:n.bbox[0], y:n.bbox[1], w:n.bbox[2], h:n.bbox[3] })));
-        // pasar de vuelta a formato bbox
-        filtered = smoothed.map(s=>({ class:s.class, score:s.score, bbox:[s.x,s.y,s.w,s.h] }));
-        drawDetections(filtered);
-      }
-
-      // FPS
-      const now = performance.now();
-      const dt = now - lastTime; lastTime = now;
-      fps = Math.round(1000/dt);
-      if (Number.isFinite(fps)) perfEl.textContent = `FPS: ${fps}`;
-
-      rafId = requestAnimationFrame(loop);
-    }
-
-    async function loadModel(){
-      statusEl.textContent = 'Cargando modelo…';
-      model = await cocoSsd.load({ base: modelSel.value });
-      statusEl.textContent = `Modelo listo (${modelSel.value})`;
-      speak('Modelo cargado');
-    }
-
-    // ===== Comandos por voz (experimental) =====
-    function setupVoice(){
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return;
-      const rec = new SR();
-      rec.lang = 'es-ES'; rec.continuous = true; rec.interimResults = false;
-      rec.onresult = (e)=>{
-        const txt = e.results[e.results.length-1][0].transcript.toLowerCase().trim();
-        // comandos simples
-        if (txt.includes('iniciar')) btnStart.click();
-        if (txt.includes('detener')) btnStop.click();
-        if (txt.includes('etiquetas')) { toggleTags.checked = !toggleTags.checked; toggleTags.dispatchEvent(new Event('change')); }
-        if (txt.includes('compacto')) { toggleCompact.checked = !toggleCompact.checked; toggleCompact.dispatchEvent(new Event('change')); }
-        const m = txt.match(/sensibilidad\s+(\d{1,2}|100)/); if (m){ const v=Math.max(5,Math.min(90,Number(m[1]))); threshEl.value=(v/100).toFixed(2); threshVal.textContent=`${v}% (más bajo = detecta más)`; toast(`Sensibilidad ${v}%`); }
-        const z = txt.match(/zoom\s+([0-9]+(\.[0-9]+)?)/); if (z){ const zr=parseFloat(z[1]); const range=$('#zoomRange'); if(range){ range.value=zr; range.dispatchEvent(new Event('input')); toast(`Zoom ${zr}×`);} }
-        if (txt.includes('información') || txt.includes('info')){ if (selectedId!==null) showInfoForId(selectedId); }
-        if (txt.includes('linterna')){ if(!torchEl.disabled){ torchEl.checked=!torchEl.checked; torchEl.dispatchEvent(new Event('change')); } }
-        speak(`Comando recibido: ${txt}`);
-      };
-      rec.onerror = ()=>{};
-      rec.onend = ()=>{ setTimeout(()=>rec.start(), 1000); }; // auto-reinicio
-      try{ rec.start(); toast('Comandos de voz activos'); } catch{}
-    }
-
-    // ===== Eventos UI =====
-    btnStart.addEventListener('click', startCamera);
-    btnStop.addEventListener('click', stopCamera);
-
-    modelSel.addEventListener('change', async ()=>{ model = null; await loadModel(); });
-    toggleTags.addEventListener('change', ()=>{ document.body.classList.toggle('hide-tags', !toggleTags.checked); });
-    toggleCompact.addEventListener('change', ()=>{ document.body.classList.toggle('compact', toggleCompact.checked); for (const [,el] of tags){ el.classList.toggle('compacto', toggleCompact.checked); } });
-    fitSel.addEventListener('change', applyFit);
-    resSel.addEventListener('change', async ()=>{ if (running) { await startCamera(); } });
-    threshEl.addEventListener('input', ()=>{ threshVal.textContent = `${Math.round(parseFloat(threshEl.value)*100)}% (más bajo = detecta más)`; });
-
-    // Diccionario modal
-    btnDict.addEventListener('click', ()=>{ dictModal.style.display='flex'; renderDict(); });
-    $('#dictClose').addEventListener('click', ()=>{ dictModal.style.display='none'; });
-    dictSave.addEventListener('click', ()=>{
-      const base = ($('#dictBase').value||'').trim();
-      const alias = ($('#dictAlias').value||'').trim();
-      if (!base || !alias) return;
-      const cur = getDict(); cur[base] = alias; setDict(cur); $('#dictBase').value=''; $('#dictAlias').value=''; renderDict();
-      toast(`Aprendido: ${base} → ${alias}`);
-    });
-    dictModal.addEventListener('click', (e)=>{ if (e.target === dictModal) dictModal.style.display='none'; });
-
-    // permisos para listar cámaras
+  async function startCam(){
     try{
-      const tmp = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-      tmp.getTracks().forEach(t=>t.stop());
-      await enumerateCams();
-    }catch{ await enumerateCams(); }
+      if (stream) stopCam();
+      const deviceId = els.cam.value || undefined;
+      const {width,height} = parseRes(els.res.value);
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: {exact:deviceId}, width:{ideal:width}, height:{ideal:height} } :
+                          { facingMode:'environment', width:{ideal:width}, height:{ideal:height} },
+        audio:false
+      });
+      els.video.srcObject = stream; await els.video.play();
+      track = stream.getVideoTracks()[0];
+      setupTorch(track);
+      resize();
+      running=true; els.start.disabled=true; els.stop.disabled=false;
+      log('Cámara iniciada');
+      loop();
+    }catch(e){ console.error(e); alert('No se pudo iniciar la cámara. Revisa permisos/HTTPS.'); }
+  }
+  function stopCam(){
+    running=false; cancelAnimationFrame(raf);
+    if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; track=null; }
+    els.start.disabled=false; els.stop.disabled=true;
+    log('Cámara detenida');
+  }
+  function resize(){
+    const r = els.view.getBoundingClientRect();
+    els.canvas.width = r.width * devicePixelRatio;
+    els.canvas.height = r.height * devicePixelRatio;
+    els.view.classList.toggle('fit-contain', els.fit.value==='contain');
+  }
+  window.addEventListener('resize', resize);
 
-    // Backend y render
-    try { await tf.setBackend('webgl'); } catch(e){}
-    await tf.ready();
-    await loadModel();
-    resizeCanvas();
-    threshVal.textContent = `${Math.round(parseFloat(threshEl.value)*100)}% (más bajo = detecta más)`;
-    setupVoice(); // opcional si el navegador lo soporta
-  })();
-  </script>
+  async function setupTorch(track){
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.torch !== undefined){ els.torch.disabled=false; els.torch.onchange = async ()=>{ try{ await track.applyConstraints({advanced:[{torch:els.torch.checked}]}); }catch{} }; }
+  }
+
+  /* ---------- Tracking (IDs) ---------- */
+  function IoU(a,b){
+    const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
+    const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
+    const inter=Math.max(0,x2-x1)*Math.max(0,y2-y1);
+    const ua=a.w*a.h + b.w*b.h - inter; return ua>0 ? inter/ua : 0;
+  }
+  function updateTracks(dets){ // dets: {cls,score,bbox:[x,y,w,h]}
+    // proyección a objetos con coords y suavizado
+    const curr = dets.map(d=>({ cls:d.cls, score:d.score, x:d.bbox[0], y:d.bbox[1], w:d.bbox[2], h:d.bbox[3], id:null }));
+    // ROI filtro
+    if (roi){
+      for (let i=curr.length-1;i>=0;i--){
+        const a=curr[i]; const cx=a.x+a.w/2, cy=a.y+a.h/2;
+        if (!(cx>=roi.x && cx<=roi.x+roi.w && cy>=roi.y && cy<=roi.y+roi.h)) curr.splice(i,1);
+      }
+    }
+    // asociar por IoU
+    const used = new Set();
+    tracks.forEach(t=>{
+      let best=-1, bestI= -1;
+      curr.forEach((c,i)=>{ if (used.has(i) || c.cls!==t.cls) return;
+        const iou=IoU(t,c); if (iou>best){ best=iou; bestI=i; }});
+      if (best>=CFG.iouMatch && bestI>-1){
+        const c=curr[bestI]; // suavizado
+        t.x = CFG.alpha*t.x + (1-CFG.alpha)*c.x;
+        t.y = CFG.alpha*t.y + (1-CFG.alpha)*c.y;
+        t.w = CFG.alpha*t.w + (1-CFG.alpha)*c.w;
+        t.h = CFG.alpha*t.h + (1-CFG.alpha)*c.h;
+        t.score = c.score; t.missed = 0; used.add(bestI);
+      } else {
+        t.missed++;
+      }
+    });
+    // nuevos
+    curr.forEach((c,i)=>{ if (used.has(i)) return;
+      tracks.push({ id: nextTrackId++, cls:c.cls, x:c.x, y:c.y, w:c.w, h:c.h, score:c.score, missed:0 });
+    });
+    // limpiar perdidos
+    tracks = tracks.filter(t=>t.missed<=8);
+  }
+
+  /* ---------- Detección principal ---------- */
+  async function ensureModel(){
+    try{
+      if (els.detector.value==='pro'){
+        els.rfBox.style.display='inline-flex';
+        if (!rfModel){ await RF.load(); els.status.textContent='Detector Pro cargado'; rfModel=RF; model=null; }
+      } else {
+        els.rfBox.style.display='none';
+        if (!model){ await tf.setBackend('webgl'); await tf.ready(); await DET.load(); els.status.textContent='Detector COCO cargado'; model=DET; rfModel=null; }
+      }
+    }catch(e){ console.error(e); toast('Error cargando detector'); els.status.textContent='Error de detector'; }
+  }
+
+  function draw(){
+    const vw=els.canvas.width, vh=els.canvas.height;
+    ctx.clearRect(0,0,vw,vh);
+    // ROI
+    if (roi){ ctx.strokeStyle='rgba(58,160,255,.8)'; ctx.setLineDash([8,6]); ctx.lineWidth=2; ctx.strokeRect(roi.x,roi.y,roi.w,roi.h); ctx.setLineDash([]); }
+    // Dibujo de tracks
+    els.list.innerHTML='';
+    const max = CFG.maxTags;
+    const sorted = tracks.slice().sort((a,b)=>b.score-a.score).slice(0,max);
+    sorted.forEach(t=>{
+      ctx.lineWidth = 2 * devicePixelRatio;
+      ctx.strokeStyle = 'rgba(58,160,255,.9)';
+      ctx.setLineDash([10*devicePixelRatio, 6*devicePixelRatio]);
+      ctx.strokeRect(t.x, t.y, t.w, t.h);
+      ctx.setLineDash([]);
+
+      // tag
+      if (els.showTags.checked){
+        const id = t.id;
+        let tag = document.getElementById('tag-'+id);
+        if (!tag){ tag = document.createElement('div'); tag.className='tag'; tag.id='tag-'+id; tag.addEventListener('click',()=> openInfo(t)); els.view.appendChild(tag); }
+        tag.classList.toggle('pinned', false);
+        tag.classList.toggle('compact', els.compact.checked);
+        tag.style.left = ((t.x + t.w/2)/devicePixelRatio) + 'px';
+        tag.style.top  = (t.y/devicePixelRatio) + 'px';
+        const label = toES(t.cls);
+        tag.innerHTML = `<span class="id">#${id}</span><strong>${label}</strong> <span class="conf">${pct(t.score)}</span>`;
+      }
+
+      // panel
+      const label = toES(t.cls);
+      const rel = Math.round((t.w*t.h)/(vw*vh)*100);
+      const row = document.createElement('div');
+      row.className='row';
+      row.innerHTML = `<div><strong>${label}</strong> <small>#${t.id}</small></div><div><small>${pct(t.score)} • ${rel}% área</small> <button data-id="${t.id}" class="btnInfo">Info</button></div>`;
+      els.list.appendChild(row);
+    });
+    // limpiar tags huérfanos
+    [...document.querySelectorAll('.tag')].forEach(el=>{
+      const id = Number(el.id.replace('tag-','')); if (!tracks.find(t=>t.id===id)) el.remove();
+    });
+
+    // botones info
+    els.list.querySelectorAll('.btnInfo').forEach(b=>{
+      b.onclick = ()=>{ const id=Number(b.getAttribute('data-id')); const t=tracks.find(x=>x.id===id); if (t) openInfo(t); };
+    });
+  }
+
+  async function openInfo(t){
+    const labelES = toES(t.cls);
+    let sum = `${labelES}. Objeto detectado con ${pct(t.score)} de confianza.`;
+    let url = null;
+
+    if (els.infoOnline.checked){
+      try{
+        const sURL = `https://es.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(labelES)}&limit=1`;
+        const s = await fetch(sURL,{headers:{'Accept':'application/json'}}).then(r=>r.json());
+        const title = (s?.pages && s.pages[0]?.title) ? s.pages[0].title : labelES;
+        const sumURL = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const d = await fetch(sumURL,{headers:{'Accept':'application/json'}}).then(r=>r.json());
+        sum = d?.extract || sum; url = d?.content_urls?.desktop?.page || d?.content_urls?.mobile?.page || null;
+      }catch{}
+    }
+
+    const meta = `ID #${t.id} • ${toES(t.cls)} • Confianza ${pct(t.score)} • Tamaño ${(t.w|0)}×${(t.h|0)}px`;
+    els.card.style.display='block';
+    els.card.innerHTML = `<button class="close" id="cclose">Cerrar</button><h4>${labelES}</h4><div class="meta">${meta}</div><div style="margin-top:6px">${sum}</div>${url?`<div style="margin-top:6px"><a class="chip" target="_blank" rel="noopener" href="${url}">Wikipedia</a></div>`:''}`;
+    $('#cclose').onclick = ()=> els.card.style.display='none';
+  }
+
+  /* ---------- ROI (zona de interés) ---------- */
+  let drag=null;
+  els.hit.addEventListener('mousedown', e=> startDrag(e));
+  els.hit.addEventListener('touchstart', e=> startDrag(e.touches[0]));
+  function startDrag(e){
+    const r=els.canvas.getBoundingClientRect();
+    drag = { x0:(e.clientX-r.left)*devicePixelRatio, y0:(e.clientY-r.top)*devicePixelRatio };
+    els.roi.style.display='block';
+  }
+  window.addEventListener('mousemove', e=> moveDrag(e));
+  window.addEventListener('touchmove', e=>{ if (e.touches[0]) moveDrag(e.touches[0]); }, {passive:true});
+  function moveDrag(e){
+    if (!drag) return;
+    const r=els.canvas.getBoundingClientRect();
+    const x=(e.clientX-r.left)*devicePixelRatio, y=(e.clientY-r.top)*devicePixelRatio;
+    const x1=Math.min(drag.x0,x), y1=Math.min(drag.y0,y), w=Math.abs(x-drag.x0), h=Math.abs(y-drag.y0);
+    roi = {x:x1,y:y1,w,h};
+    Object.assign(els.roi.style,{left:(x1/devicePixelRatio)+'px',top:(y1/devicePixelRatio)+'px',width:(w/devicePixelRatio)+'px',height:(h/devicePixelRatio)+'px'});
+  }
+  window.addEventListener('mouseup', ()=> endDrag());
+  window.addEventListener('touchend', ()=> endDrag());
+  function endDrag(){ if (!drag) return; drag=null; log('ROI ajustada'); }
+
+  /* ---------- Bucle ---------- */
+  async function loop(){
+    if (!running) return;
+    const skip = parseInt(els.freq.value||'2',10);
+    // FPS
+    const now=performance.now(); const dt=now-prevStamp; prevStamp=now; const fps=Math.round(1000/dt); if (Number.isFinite(fps)) els.fps.textContent='FPS: '+fps;
+
+    if (!((now|0)%skip)){ /* noop */ }
+    const th = parseFloat(els.th.value||'0.35');
+    try{
+      const det = rfModel || model;
+      const raw = await det.infer(els.video);
+      // filtrar por umbral y tamaño
+      const min = CFG.minSide*devicePixelRatio;
+      const filtered = raw.filter(p=> p.score>=th && p.bbox[2]>=min && p.bbox[3]>=min);
+      latest = filtered;
+      updateTracks(filtered);
+      draw();
+    }catch(e){ /* caída temporal ok */ }
+
+    raf = requestAnimationFrame(loop);
+  }
+
+  /* ---------- Init ---------- */
+  function saveRF(){ localStorage.setItem('rfModel', els.rfModel.value.trim()); localStorage.setItem('rfKey', els.rfKey.value.trim()); toast('Config Pro guardada'); }
+
+  // UI
+  els.detector.onchange = async ()=>{
+    els.rfBox.style.display = els.detector.value==='pro' ? 'inline-flex' : 'none';
+    model = null; rfModel = null; await ensureModel();
+  };
+  els.rfSave.onclick = saveRF;
+
+  els.start.onclick = async ()=>{ await ensureModel(); await startCam(); };
+  els.stop.onclick = stopCam;
+
+  els.th.oninput = ()=> els.thVal.textContent = `${Math.round(parseFloat(els.th.value)*100)}% (↓=más detecciones / ↑=más preciso)`;
+  els.fit.onchange = ()=> resize();
+  els.res.onchange = async ()=> { if (running) await startCam(); };
+  els.showTags.onchange = ()=>{ document.body.classList.toggle('hideTags', !els.showTags.checked); };
+  els.compact.onchange = ()=>{
+    document.querySelectorAll('.tag').forEach(t=> t.classList.toggle('compact', els.compact.checked));
+  };
+
+  try{
+    const tmp = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    tmp.getTracks().forEach(t=>t.stop());
+    await enumerateCams();
+  }catch{ await enumerateCams(); }
+
+  // Prefill RF config
+  els.rfModel.value = localStorage.getItem('rfModel')||'';
+  els.rfKey.value = localStorage.getItem('rfKey')||'';
+
+  // Fit inicial
+  resize();
+  els.status.textContent = 'Listo';
+})();
+</script>
 </body>
 </html>
